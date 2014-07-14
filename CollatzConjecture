@@ -5,28 +5,6 @@
  *      Author: Ronald Inselberg
  */
 
-#if 0
-
-README.txt
-
-Problem 1.9.3 implement "Collatz conjecture"
-	YES
-
-Problem 1.9.6 implement Luhn algorithm for credit card number validation
-	NO
-	sorry to say, I did not make enough time for myself to have this by the deadline
-
-I am using a Mac with Eclipse C++
-
-For this first submission, I have "util.h" in the same directory as my other source files.
-Perhaps I can figure out where it properly belongs for my next submission.
-
-I am not using a Memory Leak Detection tool.
-Perhaps I can figure out how to add this for my next submission.
-
-#endif
-
-
 /*----------------------------------------------------------------
 Collatz class declaration
 -----------------------------------------------------------------*/
