@@ -1,0 +1,444 @@
+/*
+ * magicsquare.h
+ *
+ *  Created on: Aug 1, 2014
+ *      Author: Ronald Inselberg
+ */
+
+#if 0
+
+README.txt
+
+I am using a Mac with Eclipse C++
+
+Automatic Memory Leak Detection (still TBD)
+
+#endif
+
+/*----------------------------------------------------------------
+magicsquare class declaration
+-----------------------------------------------------------------*/
+
+#ifndef MAGICSQUARE_H_
+#define MAGICSQUARE_H_
+
+#include "../../objects/util/util.h"
+
+class magicsquare {
+	public:
+		void print_magic_square(int);
+	private:
+		void _mSet(int *, int, int, int, int);
+		int _mGet(int *, int, int, int);
+		int _sumRow(int *, int, int);
+		int _sumCol(int *, int, int);
+		int _sumMain1(int *, int);
+		int _sumMain2(int *, int);
+		void _initialize(int*, int);
+		void _construct(int*, int, int);
+		void _test(int *, int, int);
+		void _print(int *, int);
+};
+
+#endif /* MAGICSQUARE_H_ */
+
+//EOF
+
+
+
+/*
+ * magicsquare.cpp
+ *
+ *  Created on: Aug 1, 2014
+ *      Author: Ronald Inselberg
+ */
+
+/*----------------------------------------------------------------
+magicsquare class definition
+-----------------------------------------------------------------*/
+
+#include "magicsquare.h"
+
+/*----------------------------------------------------------------
+private method _mSet
+	used to assign value to magic square element, indexed by row and column
+-----------------------------------------------------------------*/
+void magicsquare::_mSet(int* m, int n, int row, int col, int value) {
+	m[((((row-1) * n) + col) - 1)] = value;
+}
+
+/*----------------------------------------------------------------
+private method _mGet
+	used to retrieve value of magic square element, indexed by row and column
+	duplicate code of subscript computation, _mSet
+	this is perhaps not best coding practice
+		subscript computation could be implemented as another private method
+		or implemented using preprocessor directive ("macro")
+-----------------------------------------------------------------*/
+int magicsquare::_mGet(int* m, int n, int row, int col) {
+	return m[((((row-1) * n) + col) - 1)];
+}
+
+/*----------------------------------------------------------------
+private method _sumRow, etc.
+	compute all sums used to validate magic square criteria
+-----------------------------------------------------------------*/
+int magicsquare::_sumRow(int* m, int n, int row) {
+	int sum = 0;
+	for (int col = 1; col <= n; ++col) {
+		sum += _mGet(m, n, row, col);
+	}
+	return sum;
+}
+
+int magicsquare::_sumCol(int* m, int n, int col) {
+	int sum = 0;
+	for (int row = 1; row <= n; ++row) {
+		sum += _mGet(m, n, row, col);
+	}
+	return sum;
+}
+
+int magicsquare::_sumMain1(int* m, int n) {
+	int sum = 0;
+	for (int i = 1; i <= n; ++i) {
+		sum += _mGet(m, n, i, i);
+	}
+	return sum;
+}
+
+int magicsquare::_sumMain2(int* m, int n) {
+	int sum = 0;
+	for (int i = 1; i <= n; ++i) {
+		sum += _mGet(m, n, i, ((n - i) + 1));
+	}
+	return sum;
+}
+
+/*----------------------------------------------------------------
+private method _initialize
+	initializes all magic square elements to zero
+	required by _construct
+-----------------------------------------------------------------*/
+void magicsquare::_initialize(int* m, int n) {
+	for (int row = 1; row <= n; ++row) {
+		for (int col = 1; col <= n; ++col) {
+			_mSet(m, n, row, col, 0);
+		}
+	}
+}
+
+/*----------------------------------------------------------------
+private method _construct
+	computes all elements of magic square
+	more error/range checks are desired, not implemented (time)
+-----------------------------------------------------------------*/
+void magicsquare::_construct(int* m, int n, int nn) {
+	/*
+	 * hard codes solution for N = 3, used only to validate _test and _print
+	_mSet(m, n, 1, 1, 8);
+	_mSet(m, n, 1, 2, 1);
+	_mSet(m, n, 1, 3, 6);
+	_mSet(m, n, 2, 1, 3);
+	_mSet(m, n, 2, 2, 5);
+	_mSet(m, n, 2, 3, 7);
+	_mSet(m, n, 3, 1, 4);
+	_mSet(m, n, 3, 2, 9);
+	_mSet(m, n, 3, 3, 2);
+	*/
+	/*
+	 * Siamese method (Kraitchik, 1942) for odd N
+	 * http://mathworld.wolfram.com/MagicSquare.html
+	 */
+	int row = 1;
+	int col = (n / 2) + 1;
+	int num = 1;
+	_mSet(m, n, row, col, num);
+	int rowPrev = row;
+	int colPrev = col;
+	//_print(m, n);
+	for (num = 2; num <= nn; ++num) {
+		row--;
+		if (row == 0) {
+			row = n;
+		}
+		col++;
+		if (col == (n + 1)) {
+			col = 1;
+		}
+		if (_mGet(m, n, row, col) == 0) {
+			_mSet(m, n, row, col, num);
+			rowPrev = row;
+			colPrev = col;
+			//_print(m, n);
+		} else {
+			row = rowPrev + 1;
+			if (row == (n + 1)) {
+				row = 1;
+			}
+			col = colPrev;
+			assert(_mGet(m, n, row, col) == 0);
+			_mSet(m, n, row, col, num);
+			rowPrev = row;
+			colPrev = col;
+			//_print(m, n);
+		}
+	}
+}
+
+/*----------------------------------------------------------------
+private method _print
+	prints all elements of magic square
+		N rows down
+		N columns across
+-----------------------------------------------------------------*/
+void magicsquare::_print(int* m, int n) {
+	for (int row = 1; row <= n; ++row) {
+		for (int col = 1; col <= n; ++col) {
+			cout << "\t" << _mGet(m, n, row, col);
+		}
+		cout << endl;
+	}
+	cout << endl << endl << endl;
+}
+
+/*----------------------------------------------------------------
+private method _test
+	computes MAGIC_NUMBER(N)
+	validates all magic square criteria
+		sum magic square elements across every row
+		sum magic square elements down every column
+		sum magic square elements along one diagonal
+		sum magic square elements along other diagonal
+	all sums must equal MAGIC_NUMBER(N), otherwise program fails on assert
+-----------------------------------------------------------------*/
+void magicsquare::_test(int* m, int n, int nn) {
+	int magicN = ((nn + 1) * n) / 2;
+	cout << " --> magic number is " << magicN << " and the square is " << endl << endl;
+	for (int row = 1; row <= n; ++row ) {
+		assert(magicN == _sumRow(m, n, row));
+	}
+	for (int col = 1; col <= n; ++col ) {
+		assert(magicN == _sumCol(m, n, col));
+	}
+	assert(magicN == _sumMain1(m, n));
+	assert(magicN == _sumMain2(m, n));
+}
+
+/*----------------------------------------------------------------
+public method print_magic_square
+	call with value of N
+	sets n to N and nn to N*N (N squared)
+	creates an array m of type int with nn elements on the heap
+	_intialize to intialize all array values to zero, initial state of magic square
+	_construct to perform the magic square algorithm and assign all square elements
+	_test to validate that the solution satisfies all magic square criteria
+	_print to print (for N = 3, 5, 7, 9 only)
+	delete to remove array m from the heap (do not create memory leak)
+-----------------------------------------------------------------*/
+void magicsquare::print_magic_square(int n) {
+	cout << "n = " << n;
+	int nn = n * n;
+	int* m = new int[nn];
+	_initialize(m, n);
+	_construct(m, n, nn);
+	_test(m, n, nn);
+	if (n <= 9) {
+		_print(m, n);
+	}
+	delete [] m;
+}
+
+//EOF
+
+
+/*
+ * magicsquaretest.cpp
+ *
+ *  Created on: Aug 1, 2014
+ *      Author: Ronald Inselberg
+ */
+
+#include "magicsquare.h"
+
+/*----------------------------------------------------------------
+executes magicsquare test, code provided by Jag
+also, see comments provided with submission email
+-----------------------------------------------------------------*/
+int main() {
+  for (int i = 3; i < 100; i+=2) {
+    magicsquare a;
+    a.print_magic_square(i);
+  }
+  return 0;
+}
+
+#if 0
+
+
+TEST PROGRAM BUILD
+
+15:56:03 **** Build of configuration Debug for project MagicSquare ****
+make all
+Building file: ../src/magicsquare.cpp
+Invoking: GCC C++ Compiler
+g++ -O0 -g3 -Wall -c -fmessage-length=0 -MMD -MP -MF"src/magicsquare.d" -MT"src/magicsquare.d" -o "src/magicsquare.o" "../src/magicsquare.cpp"
+Finished building: ../src/magicsquare.cpp
+
+Building file: ../src/magicsquaretest.cpp
+Invoking: GCC C++ Compiler
+g++ -O0 -g3 -Wall -c -fmessage-length=0 -MMD -MP -MF"src/magicsquaretest.d" -MT"src/magicsquaretest.d" -o "src/magicsquaretest.o" "../src/magicsquaretest.cpp"
+Finished building: ../src/magicsquaretest.cpp
+
+Building target: MagicSquare
+Invoking: MacOS X C++ Linker
+g++  -o "MagicSquare"  ./src/magicsquare.o ./src/magicsquaretest.o
+Finished building target: MagicSquare
+
+
+15:56:04 Build Finished (took 1s.368ms)
+
+
+TEST PROGRAM OUTPUT DATA
+
+
+n = 3 --> magic number is 15 and the square is
+
+	8	1	6
+	3	5	7
+	4	9	2
+
+
+
+n = 5 --> magic number is 65 and the square is
+
+	17	24	1	8	15
+	23	5	7	14	16
+	4	6	13	20	22
+	10	12	19	21	3
+	11	18	25	2	9
+
+
+
+n = 7 --> magic number is 175 and the square is
+
+	30	39	48	1	10	19	28
+	38	47	7	9	18	27	29
+	46	6	8	17	26	35	37
+	5	14	16	25	34	36	45
+	13	15	24	33	42	44	4
+	21	23	32	41	43	3	12
+	22	31	40	49	2	11	20
+
+
+
+n = 9 --> magic number is 369 and the square is
+
+	47	58	69	80	1	12	23	34	45
+	57	68	79	9	11	22	33	44	46
+	67	78	8	10	21	32	43	54	56
+	77	7	18	20	31	42	53	55	66
+	6	17	19	30	41	52	63	65	76
+	16	27	29	40	51	62	64	75	5
+	26	28	39	50	61	72	74	4	15
+	36	38	49	60	71	73	3	14	25
+	37	48	59	70	81	2	13	24	35
+
+
+
+n = 11 --> magic number is 671 and the square is
+
+n = 13 --> magic number is 1105 and the square is
+
+n = 15 --> magic number is 1695 and the square is
+
+n = 17 --> magic number is 2465 and the square is
+
+n = 19 --> magic number is 3439 and the square is
+
+n = 21 --> magic number is 4641 and the square is
+
+n = 23 --> magic number is 6095 and the square is
+
+n = 25 --> magic number is 7825 and the square is
+
+n = 27 --> magic number is 9855 and the square is
+
+n = 29 --> magic number is 12209 and the square is
+
+n = 31 --> magic number is 14911 and the square is
+
+n = 33 --> magic number is 17985 and the square is
+
+n = 35 --> magic number is 21455 and the square is
+
+n = 37 --> magic number is 25345 and the square is
+
+n = 39 --> magic number is 29679 and the square is
+
+n = 41 --> magic number is 34481 and the square is
+
+n = 43 --> magic number is 39775 and the square is
+
+n = 45 --> magic number is 45585 and the square is
+
+n = 47 --> magic number is 51935 and the square is
+
+n = 49 --> magic number is 58849 and the square is
+
+n = 51 --> magic number is 66351 and the square is
+
+n = 53 --> magic number is 74465 and the square is
+
+n = 55 --> magic number is 83215 and the square is
+
+n = 57 --> magic number is 92625 and the square is
+
+n = 59 --> magic number is 102719 and the square is
+
+n = 61 --> magic number is 113521 and the square is
+
+n = 63 --> magic number is 125055 and the square is
+
+n = 65 --> magic number is 137345 and the square is
+
+n = 67 --> magic number is 150415 and the square is
+
+n = 69 --> magic number is 164289 and the square is
+
+n = 71 --> magic number is 178991 and the square is
+
+n = 73 --> magic number is 194545 and the square is
+
+n = 75 --> magic number is 210975 and the square is
+
+n = 77 --> magic number is 228305 and the square is
+
+n = 79 --> magic number is 246559 and the square is
+
+n = 81 --> magic number is 265761 and the square is
+
+n = 83 --> magic number is 285935 and the square is
+
+n = 85 --> magic number is 307105 and the square is
+
+n = 87 --> magic number is 329295 and the square is
+
+n = 89 --> magic number is 352529 and the square is
+
+n = 91 --> magic number is 376831 and the square is
+
+n = 93 --> magic number is 402225 and the square is
+
+n = 95 --> magic number is 428735 and the square is
+
+n = 97 --> magic number is 456385 and the square is
+
+n = 99 --> magic number is 485199 and the square is
+
+#endif
+
+//EOF
+
+
+
