@@ -1,0 +1,706 @@
+/*
+ * intmatrix1.h
+ *
+ *  Created on: Aug 7, 2014
+ *      Author: Ronald Inselberg
+ */
+
+#if 0
+
+README.txt
+
+I am using a Mac with Eclipse C++
+
+Automatic Memory Leak Detection (still TBD)
+
+Test program build and output data appended to intmatrix1.cpp
+
+#endif
+
+/*----------------------------------------------------------------
+intmatrix1 class declaration
+-----------------------------------------------------------------*/
+
+
+#ifndef INTMATRIX1_H_
+#define INTMATRIX1_H_
+
+#include "../../objects/util/util.h"
+
+class intmatrix1 {
+
+	/*
+	 * implements 2-D matrix with matrix add and matrix multiply functions
+	 */
+
+	public:
+
+		/*
+		 * public functions
+		 */
+
+		void init();
+		void init(const int, const int);
+		void init(const int, const int, const int);
+		void init(const char*);
+		bool isEmpty() { return !(_m); };
+		bool isEqual(intmatrix1);
+		void print(const char*);
+
+		/*
+		 * reference
+		 * http://www.purplemath.com/modules/mtrxadd.htm
+		 */
+		intmatrix1 add(intmatrix1);
+		/*
+		 * reference
+		 * http://www.purplemath.com/modules/mtrxmult.htm
+		 */
+		intmatrix1 mult(intmatrix1);
+
+		void fini() { if (_m) delete [] _m; };
+
+	private:
+
+		/*
+		 * private data
+		 */
+
+		int* _m;
+		int _nRow;
+		int _nCol;
+
+		/*
+		 * private functions
+		 */
+
+		void _initEmpty();
+		void _parse1(char*&, const char, int&);
+		void _parse2(char*&, const char, int&);
+		void _parse3(char*&, const char, int&, int&);
+		bool _getNum(char*&, const char, int&);
+		void _mSet(const int, const int, const int);
+		int _mGet(const int, const int);
+		int _dotProduct(intmatrix1, const int, const int);
+
+};
+
+#endif /* INTMATRIX1_H_ */
+
+//EOF
+
+
+/*
+ * intmatrix1.cpp
+ *
+ *  Created on: Aug 7, 2014
+ *      Author: Ronald Inselberg
+ */
+
+/*----------------------------------------------------------------
+intmatrix1 class definition
+-----------------------------------------------------------------*/
+
+#include "intmatrix1.h"
+
+/*----------------------------------------------------------------
+public method init
+-----------------------------------------------------------------*/
+void intmatrix1::init() {
+	_initEmpty();
+}
+
+/*----------------------------------------------------------------
+public method init
+-----------------------------------------------------------------*/
+void intmatrix1::init(const int row, const int col) {
+	if ((0 < row) && (0 < col)) {
+		/*
+		 * intialize all matrix elements to zero (0)
+		 */
+		init(row, col, 0);
+	} else {
+		_initEmpty();
+	}
+}
+
+/*----------------------------------------------------------------
+public method init
+-----------------------------------------------------------------*/
+void intmatrix1::init(const int row, const int col, const int value) {
+	if ((0 < row) && (0 < col)) {
+		_nRow = row;
+		_nCol = col;
+		_m = new int[ _nRow * _nCol];
+		for (int row = 1; row <= _nRow; ++row) {
+			for (int col = 1; col <= _nCol; ++col) {
+				_mSet(row, col, value);
+			}
+		}
+	} else {
+		_initEmpty();
+	}
+}
+
+/*----------------------------------------------------------------
+public method init
+-----------------------------------------------------------------*/
+void intmatrix1::init(const char* specString) {
+	/*
+	 * initialize matrix using specially formatted string
+	 * rows are delimited by the '|' character
+	 * the first row defines the number of columns
+	 * string must specify an explicit value for every matrix element
+	 * signed values (+, -) are not implemented
+	 * calls private functions _parse1, _parse2, parse3
+	 * initializes to Empty matrix if improperly formatted string
+	 */
+	char specStringCopy[strlen(specString) + 1];
+	strcpy(specStringCopy, specString);
+	char* stringBuffer;
+	stringBuffer = specStringCopy;
+	char rowTerminator = '|';
+	int countRowTerminators = 0;
+	_parse1(stringBuffer, rowTerminator, countRowTerminators);
+	int nRow = countRowTerminators + 1;
+	assert(0 < nRow);
+	stringBuffer = specStringCopy;
+	int nCol = 0;
+	_parse2(stringBuffer, rowTerminator, nCol);
+	assert(nCol >= 0);
+	for (int test = 2; test <= nRow; ++test) {
+		if ((*stringBuffer) && (*stringBuffer == rowTerminator)) {
+			*stringBuffer++;
+		}
+		int test1 = 0;
+		_parse2(stringBuffer, rowTerminator, test1);
+		if (test1 != nCol) {
+			/*
+			 * improperly formatted string
+			 */
+			_initEmpty();
+			return;
+
+		}
+	}
+	if (nCol == 0) {
+		/*
+		 * string did not specify any matrix element(s)
+		 * initialize to Empty matrix
+		 */
+		_initEmpty();
+	} else {
+		init(nRow, nCol);
+		stringBuffer = specStringCopy;
+		int row = 1, col = 1;
+		_parse3(stringBuffer, rowTerminator, row, col);
+		if ((row != nRow) || (col != nCol)) {
+			/*
+			 * improperly formatted string
+			 * HEAP has already been used to store matrix element data
+			 * delete with "fini" to return unneeded space to HEAP
+			 * revert to Empty matrix
+			 */
+			fini();
+			_initEmpty();
+		}
+	}
+}
+
+/*----------------------------------------------------------------
+public method isEqual
+-----------------------------------------------------------------*/
+bool intmatrix1::isEqual(intmatrix1 b) {
+	/*
+	 * returns true if matrix and "b" matrix are both Empty
+	 * or,
+	 *
+	 * returns true if matrix and "b" matrix are of equal dimensions (row and column)
+	 * and,
+	 * and every element is equal to the corresponding (row, column) element of "b"
+	 *
+	 * otherwise, returns false
+	 */
+	if (isEmpty() != b.isEmpty()) {
+		return false;
+
+	}
+	if (isEmpty() && b.isEmpty()) {
+		return true;
+
+	}
+	if ((_nRow != b._nRow) || (_nCol != b._nCol)) {
+		return false;
+
+	}
+	for (int row = 1; row <= _nRow; ++row) {
+		for (int col = 1; col <= _nCol; ++col) {
+			if (_mGet(row,col) != b._mGet(row,col)) {
+				return false;
+
+			}
+		}
+	}
+	return true;
+}
+
+/*----------------------------------------------------------------
+public method print
+-----------------------------------------------------------------*/
+void intmatrix1::print(const char* name = "") {
+	cout << "printout of " << name << endl;
+	if (isEmpty()) {
+		cout << "Empty matrix" << endl;
+	} else {
+		for (int row = 1; row <= _nRow; ++row) {
+			for (int col = 1; col <= _nCol; ++col) {
+				cout << "\t" << _mGet(row, col);
+			}
+			cout << endl;
+		}
+	}
+	cout << endl;
+}
+
+/*----------------------------------------------------------------
+public method add
+-----------------------------------------------------------------*/
+intmatrix1 intmatrix1::add(intmatrix1 b) {
+	/*
+	 * returns Empty matrix if matrix is Empty, and/or "b" matrix is Empty
+	 * or,
+	 * returns Empty matrix if matrix and "b" matrix are not of equal dimensions (row, column)
+	 */
+	intmatrix1 x;
+	if (isEmpty() != b.isEmpty()) {
+		x.init();
+		return x;
+
+	}
+	if (isEmpty() && b.isEmpty()) {
+		x.init();
+		return x;
+
+
+	}
+	if ((_nRow != b._nRow) || (_nCol != b._nCol)) {
+		x.init();
+		return x;
+
+	}
+	x.init(_nRow, _nCol);
+	for (int row = 1; row <= _nRow; ++row) {
+		for (int col = 1; col <= _nCol; ++col) {
+			x._mSet(row, col, _mGet(row, col) + b._mGet(row, col));
+		}
+	}
+	return x;
+}
+
+/*----------------------------------------------------------------
+public method mult
+-----------------------------------------------------------------*/
+intmatrix1 intmatrix1::mult(intmatrix1 b) {
+	/*
+	 * returns Empty matrix if matrix and/or "b" matrix is Empty
+	 * or,
+	 * returns Empty matrix if matrix does not have exactly as many columns as "b" matrix has rows
+	 *
+	 * otherwise, the product of matrix * "b" matrix is returned
+	 * with,
+	 * exactly as many rows as matrix and columns as "b" matrix
+	 */
+	intmatrix1 x;
+	if (isEmpty() != b.isEmpty()) {
+		x.init();
+		return x;
+
+	}
+	if (isEmpty() && b.isEmpty()) {
+		x.init();
+		return x;
+
+
+	}
+	if (_nCol != b._nRow) {
+		x.init();
+		return x;
+
+	}
+	x.init(_nRow, b._nCol);
+	for (int row = 1; row <= _nRow; ++row) {
+		for (int col = 1; col <= b._nCol; ++col) {
+			x._mSet(row, col, _dotProduct(b, row, col));
+		}
+	}
+	return x;
+}
+
+/*----------------------------------------------------------------
+private method _initEmpty
+-----------------------------------------------------------------*/
+void intmatrix1::_initEmpty() {
+	/*
+	 * initializes to Empty matrix
+	 */
+	_m = NULL;
+	_nRow = 0;
+	_nCol = 0;
+}
+
+/*----------------------------------------------------------------
+private method _parse1
+-----------------------------------------------------------------*/
+void intmatrix1::_parse1(char*& stringBuffer, const char rowTerminator, int& countRowTerminators) {
+	while (*stringBuffer) {
+		if (*stringBuffer++ == rowTerminator) {
+			_parse1(stringBuffer, rowTerminator, ++countRowTerminators);
+		}
+	}
+}
+
+/*----------------------------------------------------------------
+private method _parse2
+-----------------------------------------------------------------*/
+void intmatrix1::_parse2(char*& stringBuffer, const char rowTerminator, int& nCol) {
+	int value = -1;
+	while ((*stringBuffer) && (*stringBuffer != rowTerminator)) {
+		while (*stringBuffer == ' ') {
+			*stringBuffer++;
+		}
+		if (_getNum(stringBuffer, rowTerminator, value)) {
+			_parse2(stringBuffer, rowTerminator, ++nCol);
+		}
+		//assert(0 <= value);
+	}
+}
+
+/*----------------------------------------------------------------
+private method _parse3
+-----------------------------------------------------------------*/
+void intmatrix1::_parse3(char*& stringBuffer, const char rowTerminator, int& nRow, int& nCol) {
+	while (*stringBuffer == ' ') {
+		*stringBuffer++;
+	}
+	int value;
+	if (_getNum(stringBuffer, rowTerminator, value)) {
+		if (((1 <= nRow) && (nRow <= _nRow)) && ((1 <= nCol) && (nCol <= _nCol))) {
+			_mSet(nRow, nCol, value);
+		} else {
+			nCol = 0;
+			return;
+
+		}
+		if (nCol == _nCol) {
+			if (nRow == _nRow) {
+				return;
+
+			} else {
+				nCol = 1;
+				nRow++;
+				while (*stringBuffer != rowTerminator) {
+					*stringBuffer++;
+				}
+				*stringBuffer++;
+				_parse3(stringBuffer, rowTerminator, nRow, nCol);
+			}
+		} else {
+			nCol++;
+			while (*stringBuffer == ' ') {
+				*stringBuffer++;
+			}
+			_parse3(stringBuffer, rowTerminator, nRow, nCol);
+		}
+	} else {
+		nCol = 0;
+	}
+}
+
+/*----------------------------------------------------------------
+private method _getNum
+-----------------------------------------------------------------*/
+bool intmatrix1::_getNum(char*& stringBuffer, const char rowTerminator, int& sum) {
+	/*
+	 * parse and convert unsigned integer values when matrix is initialized using specially formatted string
+	 * supports public function "init" when called with string argument
+	 */
+	sum = -1;
+	int d;
+	while (true) {
+		if ((*stringBuffer) && ((*stringBuffer != rowTerminator) && *stringBuffer != ' ')) {
+			d = *stringBuffer++ - '0';
+			assert((0 <= d) && (d <= 9));
+			if (sum == -1) {
+				sum = 0;
+			}
+			sum = (sum * 10) + d;
+		} else {
+			break;
+
+		}
+	}
+	return (sum >= 0);
+}
+
+/*----------------------------------------------------------------
+private method _mSet
+-----------------------------------------------------------------*/
+void intmatrix1::_mSet(const int row, const int col, const int value) {
+	/*
+	 * 2-D matrix implemented as single dimension array
+	 */
+	assert((1 <= row) && (row <= _nRow));
+	assert((1 <= col) && (col <= _nCol));
+	_m[((((row-1) * _nCol) + col) - 1)] = value;
+}
+
+/*----------------------------------------------------------------
+private method _mSet
+-----------------------------------------------------------------*/
+int intmatrix1::_mGet(const int row, const int col) {
+	/*
+	 * 2-D matrix implemented as single dimension array
+	 */
+	assert((1 <= row) && (row <= _nRow));
+	assert((1 <= col) && (col <= _nCol));
+	return _m[((((row-1) * _nCol) + col) - 1)];
+}
+
+/*----------------------------------------------------------------
+private method _dotProduct
+-----------------------------------------------------------------*/
+int intmatrix1::_dotProduct(intmatrix1 b, const int row, const int col) {
+	/*
+	 * supports public function "mult"
+	 */
+	assert((1 <= row) && (row <= _nRow));
+	assert((1 <= col) && (col <= b._nCol));
+	int dotProduct = 0;
+	for (int c = 1; c <= _nCol; ++c) {
+		dotProduct += _mGet(row, c) * b._mGet(c, col);
+	}
+	return dotProduct;
+}
+
+
+#if 0
+
+
+TEST PROGRAM BUILD
+
+13:52:01 **** Build of configuration Debug for project intmatrix1 ****
+make all
+Building file: ../src/intmatrix1.cpp
+Invoking: GCC C++ Compiler
+g++ -O0 -g3 -Wall -c -fmessage-length=0 -MMD -MP -MF"src/intmatrix1.d" -MT"src/intmatrix1.d" -o "src/intmatrix1.o" "../src/intmatrix1.cpp"
+../src/intmatrix1.cpp:70:4: warning: expression result unused [-Wunused-value]
+                        *stringBuffer++;
+                        ^~~~~~~~~~~~~~~
+../src/intmatrix1.cpp:229:4: warning: expression result unused [-Wunused-value]
+                        *stringBuffer++;
+                        ^~~~~~~~~~~~~~~
+../src/intmatrix1.cpp:244:3: warning: expression result unused [-Wunused-value]
+                *stringBuffer++;
+                ^~~~~~~~~~~~~~~
+../src/intmatrix1.cpp:264:6: warning: expression result unused [-Wunused-value]
+                                        *stringBuffer++;
+                                        ^~~~~~~~~~~~~~~
+../src/intmatrix1.cpp:266:5: warning: expression result unused [-Wunused-value]
+                                *stringBuffer++;
+                                ^~~~~~~~~~~~~~~
+../src/intmatrix1.cpp:272:5: warning: expression result unused [-Wunused-value]
+                                *stringBuffer++;
+                                ^~~~~~~~~~~~~~~
+6 warnings generated.
+Finished building: ../src/intmatrix1.cpp
+
+Building file: ../src/intmatrix1test.cpp
+Invoking: GCC C++ Compiler
+g++ -O0 -g3 -Wall -c -fmessage-length=0 -MMD -MP -MF"src/intmatrix1test.d" -MT"src/intmatrix1test.d" -o "src/intmatrix1test.o" "../src/intmatrix1test.cpp"
+Finished building: ../src/intmatrix1test.cpp
+
+Building target: intmatrix1
+Invoking: MacOS X C++ Linker
+g++  -o "intmatrix1"  ./src/intmatrix1.o ./src/intmatrix1test.o
+Finished building target: intmatrix1
+
+
+13:52:02 Build Finished (took 1s.464ms)
+
+
+
+TEST PROGRAM OUTPUT DATA
+
+
+printout of Matrix a
+Empty matrix
+
+printout of Matrix b
+	0	0	0	0
+	0	0	0	0
+	0	0	0	0
+
+printout of Matrix c
+Empty matrix
+
+printout of Matrix d
+Empty matrix
+
+printout of Matrix e
+	7	7	7	7	7	7	7	7	7	7
+	7	7	7	7	7	7	7	7	7	7
+	7	7	7	7	7	7	7	7	7	7
+
+printout of Matrix f
+	1	2
+	3	4
+	5	6
+
+printout of Matrix g
+	1	2
+	3	4
+	5	6
+
+printout of Matrix h
+Empty matrix
+
+printout of Matrix a
+	7	9	11
+	13	15	17
+
+printout of Matrix b
+	6	8	10
+	12	14	16
+
+printout of matrix s
+	13	17	21
+	25	29	33
+
+printout of matrix expected ans
+	13	17	21
+	25	29	33
+
+printout of Matrix a
+	1	2	3
+	4	5	6
+
+printout of Matrix b
+	1	2
+
+printout of matrix s
+Empty matrix
+
+printout of matrix expected ans
+Empty matrix
+
+printout of Matrix a
+	1	2	3
+
+printout of Matrix b
+	2	1	3
+	3	3	2
+	4	1	2
+
+printout of matrix s
+	20	10	13
+
+printout of matrix expected ans
+	20	10	13
+
+----------------------------------
+printout of Matrix a
+	3	4	2
+
+printout of Matrix b
+	13	9	7	15
+	8	7	4	6
+	6	4	0	3
+
+printout of matrix s
+	83	63	37	75
+
+printout of matrix expected ans
+	83	63	37	75
+
+----------------------------------
+printout of Matrix a
+	3
+
+printout of Matrix b
+	5	2	11
+	9	4	14
+
+printout of matrix s
+Empty matrix
+
+printout of matrix expected ans
+Empty matrix
+
+----------------------------------
+printout of Matrix a
+	3	9	0	2	2	9	5	2
+	0	2	2	1	9	6	6	8
+	7	5	6	1	4	9	8	9
+	3	3	2	9	2	1	7	4
+	1	9	0	1	2	9	5	2
+	4	2	0	3	7	3	9	1
+	5	9	0	6	6	7	8	2
+	9	3	4	6	8	4	9	1
+
+printout of Matrix b
+	6	1	6	0	8	3	0	0
+	6	8	9	0	6	6	7	2
+	4	8	2	0	5	4	6	7
+	2	4	4	2	2	6	9	8
+	4	8	2	2	4	6	4	1
+	1	5	5	6	4	7	5	5
+	7	4	6	5	0	6	5	3
+	2	3	7	0	1	3	8	5
+
+printout of matrix s
+	132	170	200	87	128	186	175	106
+	122	186	166	86	92	182	195	123
+	197	235	267	104	179	243	253	178
+	128	140	164	63	86	162	194	140
+	118	164	184	85	110	174	166	98
+	138	142	144	83	91	162	137	82
+	187	222	244	106	160	244	232	141
+	201	212	210	97	171	230	204	142
+
+printout of matrix expected ans
+	132	170	200	87	128	186	175	106
+	122	186	166	86	92	182	195	123
+	197	235	267	104	179	243	253	178
+	128	140	164	63	86	162	194	140
+	118	164	184	85	110	174	166	98
+	138	142	144	83	91	162	137	82
+	187	222	244	106	160	244	232	141
+	201	212	210	97	171	230	204	142
+
+----------------------------------
+printout of Matrix a
+	7	3
+	2	5
+	6	8
+	9	0
+
+printout of Matrix b
+	8	14	0	3	1
+	7	11	5	91	3
+	8	4	19	5	57
+
+printout of matrix s
+Empty matrix
+
+printout of matrix expected ans
+Empty matrix
+
+----------------------------------
+
+#endif
+
+//EOF
+
+
+
+
