@@ -1,0 +1,1116 @@
+/*
+ * deal_or_no_deal.h
+ *
+ *  Created on: Aug 18, 2014
+ *      Author: Ronald Inselberg
+ */
+
+#if 0
+
+README.txt
+
+I am using a Mac with the Eclipse C/C++ package (freeware).
+
+Automatic Memory Leak Detection (still TBD)
+
+Test program build and output data appended to deal_or_no_deal.cpp
+
+The user is presented with four options :
+1. play a single game interactively, by responding to prompts for keyboard input using the console
+2. run the "millionaire" option
+3. run the "bankruptcy" option
+q. quit (terminates the program)
+
+The program loops, so that the same four options are presented until the user selects the quit option
+or otherwise terminates the program.
+
+The buyouts or banker offers are computed by a function that I lifted from a web page. The function was
+determined empirically by someone who watched the game for a few successive nights as it was televised.
+
+At any given round of the game, there is a straightforward calculation of the players expected profit,
+based on the premise that the player declines all further buyout offers or bankers offers and plays the
+game all the way to the end. This is a straightforward derivation from probability theory. The player is
+facing a game board that displays all the amounts ($) that are not in suitcases that have been removed, and
+so, are still in play. These are all the possible amounts that the player could be awarded at the end of the
+game. So the players expected profit or expectation is the sum of all of these outstanding amounts ($),
+divided by the number of suitcases that are still in play (counting the suitcase that was selected to start
+the game). This expectation is not revealed to the player in the interactive mode, but it is computed
+as part of the formula (in this implementation) for the bankers deals or buyout offers.
+
+The "millionaire" option runs simulated games, using randomized player inputs, until the total payout
+equals or exceeds $1000000. There is no console interaction with the user until it completes and displays
+some output data. In this implementation, the criterion for whether a bankers offer is accepted or declined
+depends upon the simulated players expectation at that round of the game. If the bankers offer equals or
+exceeds the simulated players expectation, the offer is accepted; otherwise the offer is declined and the
+simulated game continues to the next round.
+
+I have "eyeballed" the output from several "millionaire" runs, and I have not seen any output number that
+seems out of line with the way that I wanted it to work. The output data may not have any or much similarity
+to the outcomes when the game was televised having inputs from a human player and a human banker. But given
+the limited time that I have to work with, I think I captured the general idea of how it could be simulated.
+
+The "bankruptcy" option is not implemented. Even if I had more time to work on it, I am not sure what
+this means. I posted about this on the Forums section of the course (online portal provided by UCSCX).
+
+I had linker problems when I tried to use static member variables and functions. Not sure if it is just my
+inexperience, or if this is a problem with my C++ package (Eclipse C/C++ for Mac).
+
+I have made test_bed a static member function--the only static member function.
+
+I did not use any static member variables; whenever I tried to do that, I had linker problems.
+
+I took advantage of the C++ vector template class inside the one member function (_amounts_in_play),
+where I needed to sort an array of type double on ascending numerical order. So I used my array to
+create a vector by using the template class invocation vector<double> to set up a call on the
+std library sort function.
+
+I did not invest much time on the _monetize function that formats the type double money amounts as
+output strings. It is not international currency generic. Just a  simple implementation of USD.
+Except for the $0.01 (one penny prize) that is part of the standard game, all amounts are rounded
+down to the nearest dollar.
+
+#endif
+
+/*----------------------------------------------------------------
+deal_or_no_deal class declaration
+-----------------------------------------------------------------*/
+
+
+#ifndef DEAL_OR_NO_DEAL_H_
+#define DEAL_OR_NO_DEAL_H_
+
+#include "../../objects/util/util.h"
+#include "Random.h"
+
+#define DEBUG_DEAL_OR_NO_DEAL false
+#define NUMBER_OF_SUITCASES 26
+#define LAST_OFFER 9
+
+/*
+ * At the beginning of the game, all suitcases are currently in play.
+ *
+ * The game starts with the player selecting one of the suitcases as "theirs".
+ *
+ * This suitcase contains the money that the player is awarded at the end of the game,
+ * unless the player accepts an offer from the host to end the game at some intermediate round.
+ *
+ * If the player continues (by declining every offer) until there is the suitcase that is "theirs" and only one other
+ * suitcase in play, the players last option is to swap "theirs" for the other suitcase.
+ *
+ * This could also be implemented using an Enumeration type, instead of preprocessor definitions.
+ */
+#define CURRENTLY_IN_PLAY -1
+#define SELECTED_BY_PLAYER 0
+#define REMOVED_FROM_PLAY 1
+
+static const double SUITCASE_AMOUNT[NUMBER_OF_SUITCASES + 1] = {
+		0, 0.01, 1, 5, 10, 25, 50, 75, 100,
+		200, 300, 400, 500, 750, 1000,
+		5000, 10000, 25000, 50000, 75000, 100000,
+		200000, 300000, 400000, 500000, 750000, 1000000
+};
+static const int NUMBER_TO_REVEAL[LAST_OFFER +1] = {0, 6, 5, 4, 3, 2, 1, 1, 1, 1};
+
+class deal_or_no_deal {
+
+public:
+	deal_or_no_deal();
+	~deal_or_no_deal();
+	static void test_bed();
+	bool interactive() const {return _interactive;}	/* not used in my implementation */
+	void play_a_game();
+	void play_until_millionaire();
+	void play_until_bankrupt();
+
+private:
+	/* generic (required for every implementation) */
+	Random _r;
+	bool _interactive;	/* I ran into linker problems when I tried to make this a static member variable */
+
+	/* no copy or equality function */
+	deal_or_no_deal(const deal_or_no_deal& x);
+	deal_or_no_deal& operator=(const deal_or_no_deal& x);
+
+	/*
+	 * specifics of my implementation
+	 */
+	/*
+	 * member variables
+	 */
+	double _amount_awarded;
+	double _maximum_amount_in_play;
+	double _suitcase[NUMBER_OF_SUITCASES + 1];
+	int _suitcase_status[NUMBER_OF_SUITCASES + 1];
+	int _suitcase_selection;
+	int _number_of_suitcases_in_play;
+	int _round;
+	double _offer[LAST_OFFER + 1];
+	int _number_of_simulated_games;
+	double _total_payout;
+	double _highest_single_payout;
+	double _average_payout;
+	int _offers_tendered;
+	int _offers_accepted;
+	int _offers_declined;
+	int _games_played_to_end;
+	/*
+	 * member functions
+	 */
+	void _test_bed(int);
+	double _play_a_game();
+	void _shuffle_suitcases();
+	void _select_suitcase();
+	void _remove_suitcases();
+	void _offer_buyout();
+	bool _offer_accepted();
+	void _offer_swap();
+	int _number_from_user(char*, int, int);
+	void _suitcases_in_play();
+	void _amounts_in_play();
+	int _only_other_suitcase_on_the_board();
+	double _expected_award();
+	double _bankers_offer(double);
+	char* _monetize(double);
+	void _play_until_millionaire();
+	void _simulation_initialize();
+	void _simulation_process();
+	void _simulation_output();
+	void _simulated_game();
+	void _select_suitcase_simulated();
+	void _remove_suitcases_simulated();
+	void _offer_buyout_simulated(double);
+	bool _offer_accepted_simulated(double);
+	void _offer_swap_simulated();
+
+};
+
+#endif /* DEAL_OR_NO_DEAL_H_ */
+
+//EOF
+
+
+
+/*
+ * deal_or_no_deal.cpp
+ *
+ *  Created on: Aug 18, 2014
+ *      Author: Ronald Inselberg
+ */
+
+#include "deal_or_no_deal.h"
+
+deal_or_no_deal::deal_or_no_deal() {
+	if (DEBUG_DEAL_OR_NO_DEAL) {
+		cout << "deal_or_no_deal, constructor" << endl;
+	}
+	_interactive = false;
+	_amount_awarded = -1;
+	_maximum_amount_in_play = -1;
+	_suitcase_selection = -1;
+	_number_of_suitcases_in_play = -1;
+	_round = -1;
+	_number_of_simulated_games = 0;
+	_total_payout = 0;
+	_highest_single_payout = -1;
+	_average_payout = -1;
+	_offers_tendered = 0;
+	_offers_accepted = 0;
+	_offers_declined = 0;
+	_games_played_to_end = 0;
+}
+
+deal_or_no_deal::~deal_or_no_deal() {
+	if (DEBUG_DEAL_OR_NO_DEAL) {
+		cout << "deal_or_no_deal, destructor" << endl;
+	}
+}
+
+void deal_or_no_deal::test_bed() {
+	char lineBuffer[1024];
+	bool justOneChar = false;
+	bool quitOption = false;
+	while (!quitOption) {
+		int modeSelect = -1;
+		char modeSelectInput = 'x';
+		bool modeSelectDone = false;
+		while (!modeSelectDone) {
+			cout << "options are interactive game (1), play until millionaire (2), play until bankrupt (3), or quit (q)" << endl;
+			cout << "input 1, 2, 3, or q :" << endl;
+			cin.getline(lineBuffer, 1024);
+			modeSelectInput = lineBuffer[0];
+			justOneChar = !(lineBuffer[1]);
+			if (modeSelectInput == 'q' && justOneChar) {
+				cout << "thank you for playing" << endl;
+				quitOption = true;
+				modeSelectDone = true;	// or could just break out of nested while loop
+			} else {
+				modeSelect = modeSelectInput - '0';
+				if (((1 <= modeSelect) && (modeSelect <= 3)) && justOneChar) {
+					/*
+					 * create an object of class deal_or_no_deal on the stack
+					 * scope where object exists starts here
+					 */
+					deal_or_no_deal game;
+					/*
+					 * process using the new object
+					 */
+					game._test_bed(modeSelect);
+					/*
+					 * next statement could be omitted, but probably better to be explicit
+					 * and back all the way up to the outer while loop
+					 */
+					modeSelectDone = true;
+					/*
+					 * deal_or_no_deal object goes out of scope here
+					 * destructor invoked automatically
+					 */
+				} else {
+					cout << "unintelligible input" << endl << endl;
+					/*
+					 * loop (inner while loop) and prompt again
+					 */
+				}
+			}
+		}
+	}
+}
+
+void deal_or_no_deal::_test_bed(int mode) {
+	switch (mode) {
+	case 1 :
+		play_a_game();
+		break;
+	case 2 :
+		play_until_millionaire();
+		break;
+	case 3 :
+		play_until_bankrupt();
+		break;
+	default :
+		/* need to debug backwards from this point */
+		assert(false);
+	}
+}
+
+void deal_or_no_deal::play_a_game() {
+	cout << "welcome to \"Deal Or No Deal\"" << endl;
+	double earnings = _play_a_game();
+	cout << "game over, you are awarded " << _monetize(earnings) << endl << endl;
+}
+
+void deal_or_no_deal::play_until_millionaire() {
+	cout << "run simulated games until the total payout equals or exceeds $1000000" << endl;
+	_play_until_millionaire();
+}
+
+void deal_or_no_deal::play_until_bankrupt() {
+	cout << "this option is not implemented" << endl << endl;
+}
+
+double deal_or_no_deal::_play_a_game() {
+	_number_of_suitcases_in_play = NUMBER_OF_SUITCASES;
+	_shuffle_suitcases();
+	_amounts_in_play();
+	if (DEBUG_DEAL_OR_NO_DEAL) {
+		cout << "your initial expectation is " << _monetize(_expected_award()) << endl;
+	}
+	_suitcases_in_play();
+	_select_suitcase();
+	for (_round = 1; _round <= LAST_OFFER; ++_round) {
+		_remove_suitcases();
+		cout << "your suitcase is " << _suitcase_selection << endl;
+		if (DEBUG_DEAL_OR_NO_DEAL) {
+			cout << "your suitcase contains " << _monetize(_suitcase[_suitcase_selection]) << endl;
+		}
+		_offer_buyout();
+		if (_offer_accepted()) {
+			cout << "offer accepted" << endl;
+			_amount_awarded = _offer[_round];
+			break;
+
+		} else {
+			cout << "offer declined" << endl;
+		}
+	}
+	if (_round == (LAST_OFFER + 1)) {
+		_offer_swap();
+		_amount_awarded = _suitcase[_suitcase_selection];
+	}
+	return _amount_awarded;
+}
+
+void deal_or_no_deal::_shuffle_suitcases() {
+	double remainingPossibilities[NUMBER_OF_SUITCASES + 1];
+	int selectFrom = -1;
+	int index = -1;
+	for (selectFrom = NUMBER_OF_SUITCASES; selectFrom >= 1; --selectFrom) {
+		remainingPossibilities[selectFrom] = SUITCASE_AMOUNT[selectFrom];
+	}
+	for (selectFrom = NUMBER_OF_SUITCASES; selectFrom >= 1; --selectFrom) {
+		index = _r.get_random_number(1, selectFrom);
+		_suitcase[selectFrom] = remainingPossibilities[index];
+		_suitcase_status[selectFrom] = CURRENTLY_IN_PLAY;
+		for (int index2 = index; index2 < selectFrom; ++index2) {
+			remainingPossibilities[index2] = remainingPossibilities[index2 + 1];
+		}
+	}
+}
+
+void deal_or_no_deal::_select_suitcase() {
+	const int digits_to_display = 2;
+	char prompt_template[] = "select a suitcase by entering a number from 1 to ";
+	char prompt_to_select_a_suitcase[strlen(prompt_template) + digits_to_display + 1];
+	sprintf(prompt_to_select_a_suitcase, "%s%2u", prompt_template, NUMBER_OF_SUITCASES);
+	_suitcase_selection = _number_from_user(prompt_to_select_a_suitcase, 1, NUMBER_OF_SUITCASES);
+	_suitcase_status[_suitcase_selection] = SELECTED_BY_PLAYER;
+	assert(_number_of_suitcases_in_play == NUMBER_OF_SUITCASES);
+}
+
+void deal_or_no_deal::_remove_suitcases() {
+	int number_to_remove = NUMBER_TO_REVEAL[_round];
+	int suitcase_to_remove = -1;
+	const int digits_to_display = 1;
+	char prompt_template_part1[] = "select ";
+	char prompt_template_part2[] = " suitcases to remove from play";
+	char prompt_template_part3[] = " suitcase to remove from play ";	// appended ' ' char at end to make it same length
+	char prompt_with_number_to_remove[strlen(prompt_template_part1) + digits_to_display + strlen(prompt_template_part2) + 1];
+	for (int number = number_to_remove; number > 0; --number) {
+		cout << "your suitcase is " << _suitcase_selection << endl;
+		if (DEBUG_DEAL_OR_NO_DEAL) {
+			cout << "your suitcase contains " << _monetize(_suitcase[_suitcase_selection]) << endl;
+		}
+		sprintf(prompt_with_number_to_remove, "%s%1u%s", prompt_template_part1, number, ((number > 1) ? prompt_template_part2 : prompt_template_part3));
+		cout << prompt_with_number_to_remove << endl;
+		_suitcases_in_play();
+		suitcase_to_remove = _number_from_user("remove one from the suitcases currently in play by entering its number", 1, NUMBER_OF_SUITCASES);
+		if (_suitcase_status[suitcase_to_remove] == CURRENTLY_IN_PLAY) {
+			_suitcase_status[suitcase_to_remove] = REMOVED_FROM_PLAY;
+			_number_of_suitcases_in_play--;
+			cout << "suitcase " << suitcase_to_remove << " containing " << _monetize(_suitcase[suitcase_to_remove]) << " has been removed from play" << endl;
+			_amounts_in_play();
+		} else {
+			cout << "invalid, select only from suitcases currently in play, try again" << endl;
+			number++;
+		}
+	}
+}
+
+void deal_or_no_deal::_offer_buyout() {
+	double expectation, buyout;
+	assert((1 <= _round) && (_round <= LAST_OFFER));
+	cout << "previous offers, starting with the very first offer, and ending with the last offer that you declined" << endl;
+	for (int i = 1; i < _round; ++i) {
+		cout << _monetize(_offer[i]) << " ";
+	}
+	cout << endl;
+	expectation = _expected_award();
+	if (DEBUG_DEAL_OR_NO_DEAL) {
+		cout << "your expectation if game is played to end without accepting an offer is " << _monetize(expectation) << endl;
+	}
+	buyout = _bankers_offer(expectation);
+	cout << "the banker offers you " << _monetize(buyout) << endl;
+	if (_round == LAST_OFFER) {
+		cout << "this is your last chance to accept an offer" << endl;
+	}
+	_offer[_round] = buyout;
+}
+
+bool deal_or_no_deal::_offer_accepted() {
+	return ((_number_from_user("enter 1 to accept offer, or 0 to decline and continue play", 0 ,1) == 1) ? true : false);
+}
+
+void deal_or_no_deal::_offer_swap() {
+	int only_other_suitcase_on_the_board = _only_other_suitcase_on_the_board();
+	cout << "do you want the amount in suitcase " << only_other_suitcase_on_the_board << " instead of the amount in the suitcase that you selected to start the game?" << endl;
+	bool swap = ((_number_from_user("enter 1 to swap, or 0 to decline", 0 ,1) == 1) ? true : false);
+	if (swap) {
+		cout << "swap accepted" << endl;
+		_suitcase_selection = only_other_suitcase_on_the_board;
+	} else {
+		cout << "swap declined" << endl;
+	}
+}
+
+int deal_or_no_deal::_number_from_user(char* prompt, int start, int stop)  {
+	int number = -1;
+	char lineBuffer[1024];
+	while (true) {
+		cout << prompt << endl;
+		cin.getline(lineBuffer, 1024);
+		number = strtol(lineBuffer, 0, 10);
+		if ((start <= number) && (number <= stop)) {
+			break;
+
+		}
+		cout << "input unintelligible as number, or number out of range" << endl;
+	}
+	return number;
+}
+
+void deal_or_no_deal::_suitcases_in_play() {
+	cout << "suitcases currently in play";
+	for (int loop_all_suitcases = 1; loop_all_suitcases <= NUMBER_OF_SUITCASES; ++loop_all_suitcases) {
+		if (_suitcase_status[loop_all_suitcases] == CURRENTLY_IN_PLAY) {
+			cout << " " << loop_all_suitcases;
+		}
+	}
+	cout << endl;
+}
+
+void deal_or_no_deal::_amounts_in_play() {
+	double process_amounts_in_play [NUMBER_OF_SUITCASES];
+	int count_of_amounts_in_play = 0;
+	cout << "amounts currently in play";
+	for (int loop_all_suitcases = 1; loop_all_suitcases <= NUMBER_OF_SUITCASES; ++loop_all_suitcases) {
+		if (_suitcase_status[loop_all_suitcases] != REMOVED_FROM_PLAY) {
+			process_amounts_in_play[count_of_amounts_in_play++] = _suitcase[loop_all_suitcases];
+		}
+	}
+	assert(count_of_amounts_in_play == _number_of_suitcases_in_play);
+	assert((1 < count_of_amounts_in_play) && (count_of_amounts_in_play <= NUMBER_OF_SUITCASES));
+	std::vector<double> amounts_in_play (process_amounts_in_play, process_amounts_in_play + _number_of_suitcases_in_play);
+	std::sort (amounts_in_play.begin(), amounts_in_play.begin() + _number_of_suitcases_in_play);
+	for (std::vector<double>::iterator it=amounts_in_play.begin(); it!=amounts_in_play.end(); ++it) {
+		cout << ' ' << _monetize(*it);
+		_maximum_amount_in_play = *it;
+	}
+	cout << endl;
+	cout << "the maximum amount currently in play is " << _monetize(_maximum_amount_in_play) << endl;
+}
+
+int deal_or_no_deal::_only_other_suitcase_on_the_board() {
+	int loop_all_suitcases = -1;
+	for (loop_all_suitcases = 1; loop_all_suitcases <= NUMBER_OF_SUITCASES; ++loop_all_suitcases) {
+		if (_suitcase_status[loop_all_suitcases] == CURRENTLY_IN_PLAY) {
+			break;
+
+		}
+	}
+	assert(loop_all_suitcases <= NUMBER_OF_SUITCASES);
+	assert(loop_all_suitcases != _suitcase_selection);
+	assert(_number_of_suitcases_in_play == 2);
+	assert(_round == (LAST_OFFER + 1));
+	return loop_all_suitcases;
+}
+
+double deal_or_no_deal::_expected_award() {
+	double expectation = 0;
+	int count_of_amounts_in_play = 0;
+	for (int loop_all_suitcases = 1; loop_all_suitcases <= NUMBER_OF_SUITCASES; ++loop_all_suitcases) {
+		if (_suitcase_status[loop_all_suitcases] != REMOVED_FROM_PLAY) {
+			expectation += _suitcase[loop_all_suitcases];
+			count_of_amounts_in_play++;
+		}
+	}
+	assert(count_of_amounts_in_play == _number_of_suitcases_in_play);
+	assert((1 < count_of_amounts_in_play) && (count_of_amounts_in_play <= NUMBER_OF_SUITCASES));
+	expectation /= _number_of_suitcases_in_play;
+	return expectation;
+}
+
+double deal_or_no_deal::_bankers_offer(double expectation) {
+	static const double B = 12275.30;
+	static const double B1 = 0.748;
+	static const double B2 = -2714.74;
+	static const double B3 = -0.040;
+	static const double B4 = 0.0000006986;
+	static const double B5 = 32.623;
+	/*
+	 * I am using a formula from :
+	 * http://commcognition.blogspot.com/2007/06/deal-or-no-deal-bankers-formula.html
+	 *
+	 * I think the formula does not count the suitcase that the player selected as "theirs" to start the game
+	 */
+	int suitcases_in_play = _number_of_suitcases_in_play - 1;	// do not count that suitcase
+	int suitcases_squared = suitcases_in_play * suitcases_in_play;
+	double expectation_squared = expectation * expectation;
+	double offer = B + (B1 * expectation) + (B2 * suitcases_in_play) + (B3 * _maximum_amount_in_play) + (B4 * expectation_squared) + (B5 * suitcases_squared);
+	return offer > 0 ? offer : 0;
+}
+
+char* deal_or_no_deal::_monetize(double amount) {
+	static char moneyString[] = "$99999999";	// maximum amount of $ that is accepted
+	unsigned int dollars = 0;
+	assert((0 <= amount) && (amount < 99999999));
+	if (amount < 1.00) {
+		sprintf(moneyString, "$%4.2f\0", amount);
+	} else {
+		dollars = amount;	// dollars, truncated (cents are discarded) "round down to the nearest dollar"
+		sprintf(moneyString, "$%u\0", dollars);
+	}
+	return moneyString;
+}
+
+void deal_or_no_deal::_play_until_millionaire() {
+	_simulation_initialize();
+	_simulation_process();
+	_simulation_output();
+}
+
+void deal_or_no_deal::_simulation_initialize() {
+	_number_of_simulated_games = 0;
+	_total_payout = 0;
+	_highest_single_payout = -1;
+	_average_payout = -1;
+	_offers_tendered = 0;
+	_offers_accepted = 0;
+	_offers_declined = 0;
+	_games_played_to_end = 0;
+}
+
+void deal_or_no_deal::_simulation_process() {
+	while (_total_payout < 1000000) {
+		_simulated_game();
+	}
+	_average_payout = _total_payout / _number_of_simulated_games;
+	assert(_offers_tendered ==_offers_accepted + _offers_declined);
+}
+
+void deal_or_no_deal::_simulation_output() {
+	cout << "data collected from simulated play" << endl;
+	cout << "number of games\t\t\t\t\t\t" << _number_of_simulated_games << endl;
+	cout << "total payout\t\t\t\t\t\t" << _monetize(_total_payout) << endl;
+	cout << "highest single payout\t\t\t\t\t" << _monetize(_highest_single_payout) << endl;
+	cout << "average payout (per game)\t\t\t\t" << _monetize(_average_payout) << endl;
+	cout << "number of banker's offers tendered\t\t\t" << _offers_tendered << endl;
+	cout << "number of banker's offers accepted\t\t\t" << _offers_accepted << endl;
+	cout << "number of banker's offers declined\t\t\t" << _offers_declined << endl;
+	cout << "number of games played to end (no offer accepted)\t" << _games_played_to_end << endl << endl;
+}
+
+void deal_or_no_deal::_simulated_game() {
+	double expectation = -1;
+	_number_of_suitcases_in_play = NUMBER_OF_SUITCASES;
+	_shuffle_suitcases();
+	_select_suitcase_simulated();
+	for (_round = 1; _round <= LAST_OFFER; ++_round) {
+		_remove_suitcases_simulated();
+		expectation = _expected_award();
+		_offer_buyout_simulated(expectation);
+		if (_offer_accepted_simulated(expectation)) {
+			_offers_accepted++;
+			_amount_awarded = _offer[_round];
+			break;
+
+		} else {
+			_offers_declined++;
+		}
+	}
+	if (_round == (LAST_OFFER + 1)) {
+		_offer_swap_simulated();
+		_amount_awarded = _suitcase[_suitcase_selection];
+		_games_played_to_end++;
+	}
+	if (_amount_awarded > _highest_single_payout) {
+		_highest_single_payout = _amount_awarded;
+	}
+	_total_payout+= _amount_awarded;
+	_number_of_simulated_games++;
+}
+
+void deal_or_no_deal::_select_suitcase_simulated() {
+	_suitcase_selection = _r.get_random_number(1, NUMBER_OF_SUITCASES);
+	_suitcase_status[_suitcase_selection] = SELECTED_BY_PLAYER;
+	_number_of_suitcases_in_play = NUMBER_OF_SUITCASES;
+}
+
+void deal_or_no_deal::_remove_suitcases_simulated() {
+	const int number_to_remove = NUMBER_TO_REVEAL[_round];
+	int number_on_board = _number_of_suitcases_in_play - 1;	/* subtract the suitcase that was selected to start the game */
+	int save = number_on_board;
+	int random_selection = 1;
+	int counter = -1;
+	int test = -1;
+	for (int number = number_to_remove; number > 0; --number) {
+		assert(number_on_board > 1);
+		random_selection = _r.get_random_number(1, number_on_board);
+		counter = 0;
+		test = 0;
+		for (int loop_all_suitcases = 1; loop_all_suitcases <= NUMBER_OF_SUITCASES; ++loop_all_suitcases) {
+			if (_suitcase_status[loop_all_suitcases] == CURRENTLY_IN_PLAY) {
+				counter++;
+				if (counter == random_selection) {
+					_suitcase_status[loop_all_suitcases] = REMOVED_FROM_PLAY;
+					_number_of_suitcases_in_play--;
+					number_on_board--;
+					test++;
+					break;
+
+				}
+			}
+		}
+		assert(test == 1);
+	}
+	assert(number_on_board == save - number_to_remove);
+	assert(_number_of_suitcases_in_play = number_on_board + 1);
+}
+
+void deal_or_no_deal::_offer_buyout_simulated(double expectation) {
+	unsigned int dollars = -1;
+	assert((1 <= _round) && (_round <= LAST_OFFER));
+	_offer[_round] = (dollars = _bankers_offer(expectation));	/* discard cents above the dollar, like the _monetize function */
+	assert(_offer[_round] >= 0);
+	_offers_tendered++;
+}
+
+bool deal_or_no_deal::_offer_accepted_simulated(double expectation) {
+	return (expectation <= _offer[_round]);
+}
+
+void deal_or_no_deal::_offer_swap_simulated() {
+	if (_r.get_random_number(0, 1)) {
+		_suitcase_selection = _only_other_suitcase_on_the_board();
+	}
+}
+
+
+
+#if 0
+
+
+
+TEST PROGRAM BUILD
+
+14:21:16 **** Build of configuration Debug for project DealOrNoDeal ****
+make all
+Building file: ../src/Random.cpp
+Invoking: GCC C++ Compiler
+g++ -O0 -g3 -Wall -c -fmessage-length=0 -MMD -MP -MF"src/Random.d" -MT"src/Random.d" -o "src/Random.o" "../src/Random.cpp"
+Finished building: ../src/Random.cpp
+
+Building file: ../src/deal_or_no_deal.cpp
+Invoking: GCC C++ Compiler
+g++ -O0 -g3 -Wall -c -fmessage-length=0 -MMD -MP -MF"src/deal_or_no_deal.d" -MT"src/deal_or_no_deal.d" -o "src/deal_or_no_deal.o" "../src/deal_or_no_deal.cpp"
+../src/deal_or_no_deal.cpp:193:42: warning: conversion from string literal to 'char *' is deprecated [-Wdeprecated-writable-strings]
+                suitcase_to_remove = _number_from_user("remove one from the suitcases currently in play by entering its number", 1, NUMBER_OF_SUITCASES);
+                                                       ^
+../src/deal_or_no_deal.cpp:227:29: warning: conversion from string literal to 'char *' is deprecated [-Wdeprecated-writable-strings]
+        return ((_number_from_user("enter 1 to accept offer, or 0 to decline and continue play", 0 ,1) == 1) ? true : false);
+                                   ^
+../src/deal_or_no_deal.cpp:233:34: warning: conversion from string literal to 'char *' is deprecated [-Wdeprecated-writable-strings]
+        bool swap = ((_number_from_user("enter 1 to swap, or 0 to decline", 0 ,1) == 1) ? true : false);
+                                        ^
+../src/deal_or_no_deal.cpp:344:31: warning: format string contains '\0' within the string body [-Wformat]
+                sprintf(moneyString, "$%4.2f\0", amount);
+                                     ~~~~~~~^~~
+../src/deal_or_no_deal.cpp:347:28: warning: format string contains '\0' within the string body [-Wformat]
+                sprintf(moneyString, "$%u\0", dollars);
+                                     ~~~~^~~
+5 warnings generated.
+Finished building: ../src/deal_or_no_deal.cpp
+
+Building file: ../src/main.cpp
+Invoking: GCC C++ Compiler
+g++ -O0 -g3 -Wall -c -fmessage-length=0 -MMD -MP -MF"src/main.d" -MT"src/main.d" -o "src/main.o" "../src/main.cpp"
+Finished building: ../src/main.cpp
+
+Building target: DealOrNoDeal
+Invoking: MacOS X C++ Linker
+g++  -o "DealOrNoDeal"  ./src/Random.o ./src/deal_or_no_deal.o ./src/main.o
+Finished building target: DealOrNoDeal
+
+
+14:21:18 Build Finished (took 2s.390ms)
+
+
+
+TEST PROGRAM OUTPUT DATA
+
+options are interactive game (1), play until millionaire (2), play until bankrupt (3), or quit (q)
+input 1, 2, 3, or q :
+3
+this option is not implemented
+
+options are interactive game (1), play until millionaire (2), play until bankrupt (3), or quit (q)
+input 1, 2, 3, or q :
+2
+run simulated games until the total payout equals or exceeds $1000000
+data collected from simulated play
+number of games						8
+total payout						$1041420
+highest single payout					$500000
+average payout (per game)				$130177
+number of banker's offers tendered			65
+number of banker's offers accepted			5
+number of banker's offers declined			60
+number of games played to end (no offer accepted)	3
+
+options are interactive game (1), play until millionaire (2), play until bankrupt (3), or quit (q)
+input 1, 2, 3, or q :
+2
+run simulated games until the total payout equals or exceeds $1000000
+data collected from simulated play
+number of games						7
+total payout						$1169972
+highest single payout					$400000
+average payout (per game)				$167138
+number of banker's offers tendered			53
+number of banker's offers accepted			5
+number of banker's offers declined			48
+number of games played to end (no offer accepted)	2
+
+options are interactive game (1), play until millionaire (2), play until bankrupt (3), or quit (q)
+input 1, 2, 3, or q :
+2
+run simulated games until the total payout equals or exceeds $1000000
+data collected from simulated play
+number of games						5
+total payout						$1133359
+highest single payout					$400000
+average payout (per game)				$226671
+number of banker's offers tendered			40
+number of banker's offers accepted			4
+number of banker's offers declined			36
+number of games played to end (no offer accepted)	1
+
+options are interactive game (1), play until millionaire (2), play until bankrupt (3), or quit (q)
+input 1, 2, 3, or q :
+1
+welcome to "Deal Or No Deal"
+amounts currently in play $0.01 $1 $5 $10 $25 $50 $75 $100 $200 $300 $400 $500 $750 $1000 $5000 $10000 $25000 $50000 $75000 $100000 $200000 $300000 $400000 $500000 $750000 $1000000
+the maximum amount currently in play is $1000000
+suitcases currently in play 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26
+select a suitcase by entering a number from 1 to 26
+7
+your suitcase is 7
+select 6 suitcases to remove from play
+suitcases currently in play 1 2 3 4 5 6 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26
+remove one from the suitcases currently in play by entering its number
+1
+suitcase 1 containing $75000 has been removed from play
+amounts currently in play $0.01 $1 $5 $10 $25 $50 $75 $100 $200 $300 $400 $500 $750 $1000 $5000 $10000 $25000 $50000 $100000 $200000 $300000 $400000 $500000 $750000 $1000000
+the maximum amount currently in play is $1000000
+your suitcase is 7
+select 5 suitcases to remove from play
+suitcases currently in play 2 3 4 5 6 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26
+remove one from the suitcases currently in play by entering its number
+2
+suitcase 2 containing $0.01 has been removed from play
+amounts currently in play $1 $5 $10 $25 $50 $75 $100 $200 $300 $400 $500 $750 $1000 $5000 $10000 $25000 $50000 $100000 $200000 $300000 $400000 $500000 $750000 $1000000
+the maximum amount currently in play is $1000000
+your suitcase is 7
+select 4 suitcases to remove from play
+suitcases currently in play 3 4 5 6 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26
+remove one from the suitcases currently in play by entering its number
+3
+suitcase 3 containing $500 has been removed from play
+amounts currently in play $1 $5 $10 $25 $50 $75 $100 $200 $300 $400 $750 $1000 $5000 $10000 $25000 $50000 $100000 $200000 $300000 $400000 $500000 $750000 $1000000
+the maximum amount currently in play is $1000000
+your suitcase is 7
+select 3 suitcases to remove from play
+suitcases currently in play 4 5 6 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26
+remove one from the suitcases currently in play by entering its number
+4
+suitcase 4 containing $75 has been removed from play
+amounts currently in play $1 $5 $10 $25 $50 $100 $200 $300 $400 $750 $1000 $5000 $10000 $25000 $50000 $100000 $200000 $300000 $400000 $500000 $750000 $1000000
+the maximum amount currently in play is $1000000
+your suitcase is 7
+select 2 suitcases to remove from play
+suitcases currently in play 5 6 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26
+remove one from the suitcases currently in play by entering its number
+5
+suitcase 5 containing $750000 has been removed from play
+amounts currently in play $1 $5 $10 $25 $50 $100 $200 $300 $400 $750 $1000 $5000 $10000 $25000 $50000 $100000 $200000 $300000 $400000 $500000 $1000000
+the maximum amount currently in play is $1000000
+your suitcase is 7
+select 1 suitcase to remove from play
+suitcases currently in play 6 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26
+remove one from the suitcases currently in play by entering its number
+6
+suitcase 6 containing $10 has been removed from play
+amounts currently in play $1 $5 $25 $50 $100 $200 $300 $400 $750 $1000 $5000 $10000 $25000 $50000 $100000 $200000 $300000 $400000 $500000 $1000000
+the maximum amount currently in play is $1000000
+your suitcase is 7
+previous offers, starting with the very first offer, and ending with the last offer that you declined
+
+the banker offers you $41185
+enter 1 to accept offer, or 0 to decline and continue play
+1
+offer accepted
+game over, you are awarded $41185
+
+options are interactive game (1), play until millionaire (2), play until bankrupt (3), or quit (q)
+input 1, 2, 3, or q :
+1
+welcome to "Deal Or No Deal"
+amounts currently in play $0.01 $1 $5 $10 $25 $50 $75 $100 $200 $300 $400 $500 $750 $1000 $5000 $10000 $25000 $50000 $75000 $100000 $200000 $300000 $400000 $500000 $750000 $1000000
+the maximum amount currently in play is $1000000
+suitcases currently in play 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26
+select a suitcase by entering a number from 1 to 26
+15
+your suitcase is 15
+select 6 suitcases to remove from play
+suitcases currently in play 1 2 3 4 5 6 7 8 9 10 11 12 13 14 16 17 18 19 20 21 22 23 24 25 26
+remove one from the suitcases currently in play by entering its number
+10
+suitcase 10 containing $100000 has been removed from play
+amounts currently in play $0.01 $1 $5 $10 $25 $50 $75 $100 $200 $300 $400 $500 $750 $1000 $5000 $10000 $25000 $50000 $75000 $200000 $300000 $400000 $500000 $750000 $1000000
+the maximum amount currently in play is $1000000
+your suitcase is 15
+select 5 suitcases to remove from play
+suitcases currently in play 1 2 3 4 5 6 7 8 9 11 12 13 14 16 17 18 19 20 21 22 23 24 25 26
+remove one from the suitcases currently in play by entering its number
+4
+suitcase 4 containing $1 has been removed from play
+amounts currently in play $0.01 $5 $10 $25 $50 $75 $100 $200 $300 $400 $500 $750 $1000 $5000 $10000 $25000 $50000 $75000 $200000 $300000 $400000 $500000 $750000 $1000000
+the maximum amount currently in play is $1000000
+your suitcase is 15
+select 4 suitcases to remove from play
+suitcases currently in play 1 2 3 5 6 7 8 9 11 12 13 14 16 17 18 19 20 21 22 23 24 25 26
+remove one from the suitcases currently in play by entering its number
+3
+suitcase 3 containing $5 has been removed from play
+amounts currently in play $0.01 $10 $25 $50 $75 $100 $200 $300 $400 $500 $750 $1000 $5000 $10000 $25000 $50000 $75000 $200000 $300000 $400000 $500000 $750000 $1000000
+the maximum amount currently in play is $1000000
+your suitcase is 15
+select 3 suitcases to remove from play
+suitcases currently in play 1 2 5 6 7 8 9 11 12 13 14 16 17 18 19 20 21 22 23 24 25 26
+remove one from the suitcases currently in play by entering its number
+5
+suitcase 5 containing $750 has been removed from play
+amounts currently in play $0.01 $10 $25 $50 $75 $100 $200 $300 $400 $500 $1000 $5000 $10000 $25000 $50000 $75000 $200000 $300000 $400000 $500000 $750000 $1000000
+the maximum amount currently in play is $1000000
+your suitcase is 15
+select 2 suitcases to remove from play
+suitcases currently in play 1 2 6 7 8 9 11 12 13 14 16 17 18 19 20 21 22 23 24 25 26
+remove one from the suitcases currently in play by entering its number
+20
+suitcase 20 containing $300000 has been removed from play
+amounts currently in play $0.01 $10 $25 $50 $75 $100 $200 $300 $400 $500 $1000 $5000 $10000 $25000 $50000 $75000 $200000 $400000 $500000 $750000 $1000000
+the maximum amount currently in play is $1000000
+your suitcase is 15
+select 1 suitcase to remove from play
+suitcases currently in play 1 2 6 7 8 9 11 12 13 14 16 17 18 19 21 22 23 24 25 26
+remove one from the suitcases currently in play by entering its number
+21
+suitcase 21 containing $0.01 has been removed from play
+amounts currently in play $10 $25 $50 $75 $100 $200 $300 $400 $500 $1000 $5000 $10000 $25000 $50000 $75000 $200000 $400000 $500000 $750000 $1000000
+the maximum amount currently in play is $1000000
+your suitcase is 15
+previous offers, starting with the very first offer, and ending with the last offer that you declined
+
+the banker offers you $61236
+enter 1 to accept offer, or 0 to decline and continue play
+0
+offer declined
+your suitcase is 15
+select 5 suitcases to remove from play
+suitcases currently in play 1 2 6 7 8 9 11 12 13 14 16 17 18 19 22 23 24 25 26
+remove one from the suitcases currently in play by entering its number
+18
+suitcase 18 containing $25 has been removed from play
+amounts currently in play $10 $50 $75 $100 $200 $300 $400 $500 $1000 $5000 $10000 $25000 $50000 $75000 $200000 $400000 $500000 $750000 $1000000
+the maximum amount currently in play is $1000000
+your suitcase is 15
+select 4 suitcases to remove from play
+suitcases currently in play 1 2 6 7 8 9 11 12 13 14 16 17 19 22 23 24 25 26
+remove one from the suitcases currently in play by entering its number
+14
+suitcase 14 containing $500000 has been removed from play
+amounts currently in play $10 $50 $75 $100 $200 $300 $400 $500 $1000 $5000 $10000 $25000 $50000 $75000 $200000 $400000 $750000 $1000000
+the maximum amount currently in play is $1000000
+your suitcase is 15
+select 3 suitcases to remove from play
+suitcases currently in play 1 2 6 7 8 9 11 12 13 16 17 19 22 23 24 25 26
+remove one from the suitcases currently in play by entering its number
+26
+suitcase 26 containing $300 has been removed from play
+amounts currently in play $10 $50 $75 $100 $200 $400 $500 $1000 $5000 $10000 $25000 $50000 $75000 $200000 $400000 $750000 $1000000
+the maximum amount currently in play is $1000000
+your suitcase is 15
+select 2 suitcases to remove from play
+suitcases currently in play 1 2 6 7 8 9 11 12 13 16 17 19 22 23 24 25
+remove one from the suitcases currently in play by entering its number
+1
+suitcase 1 containing $75000 has been removed from play
+amounts currently in play $10 $50 $75 $100 $200 $400 $500 $1000 $5000 $10000 $25000 $50000 $200000 $400000 $750000 $1000000
+the maximum amount currently in play is $1000000
+your suitcase is 15
+select 1 suitcase to remove from play
+suitcases currently in play 2 6 7 8 9 11 12 13 16 17 19 22 23 24 25
+remove one from the suitcases currently in play by entering its number
+17
+suitcase 17 containing $10000 has been removed from play
+amounts currently in play $10 $50 $75 $100 $200 $400 $500 $1000 $5000 $25000 $50000 $200000 $400000 $750000 $1000000
+the maximum amount currently in play is $1000000
+your suitcase is 15
+previous offers, starting with the very first offer, and ending with the last offer that you declined
+$61236
+the banker offers you $80324
+enter 1 to accept offer, or 0 to decline and continue play
+0
+offer declined
+your suitcase is 15
+select 4 suitcases to remove from play
+suitcases currently in play 2 6 7 8 9 11 12 13 16 19 22 23 24 25
+remove one from the suitcases currently in play by entering its number
+6
+suitcase 6 containing $750000 has been removed from play
+amounts currently in play $10 $50 $75 $100 $200 $400 $500 $1000 $5000 $25000 $50000 $200000 $400000 $1000000
+the maximum amount currently in play is $1000000
+your suitcase is 15
+select 3 suitcases to remove from play
+suitcases currently in play 2 7 8 9 11 12 13 16 19 22 23 24 25
+remove one from the suitcases currently in play by entering its number
+13
+suitcase 13 containing $1000 has been removed from play
+amounts currently in play $10 $50 $75 $100 $200 $400 $500 $5000 $25000 $50000 $200000 $400000 $1000000
+the maximum amount currently in play is $1000000
+your suitcase is 15
+select 2 suitcases to remove from play
+suitcases currently in play 2 7 8 9 11 12 16 19 22 23 24 25
+remove one from the suitcases currently in play by entering its number
+11
+suitcase 11 containing $1000000 has been removed from play
+amounts currently in play $10 $50 $75 $100 $200 $400 $500 $5000 $25000 $50000 $200000 $400000
+the maximum amount currently in play is $400000
+your suitcase is 15
+select 1 suitcase to remove from play
+suitcases currently in play 2 7 8 9 12 16 19 22 23 24 25
+remove one from the suitcases currently in play by entering its number
+25
+suitcase 25 containing $5000 has been removed from play
+amounts currently in play $10 $50 $75 $100 $200 $400 $500 $25000 $50000 $200000 $400000
+the maximum amount currently in play is $400000
+your suitcase is 15
+previous offers, starting with the very first offer, and ending with the last offer that you declined
+$61236 $80324
+the banker offers you $21021
+enter 1 to accept offer, or 0 to decline and continue play
+0
+offer declined
+your suitcase is 15
+select 3 suitcases to remove from play
+suitcases currently in play 2 7 8 9 12 16 19 22 23 24
+remove one from the suitcases currently in play by entering its number
+7
+suitcase 7 containing $500 has been removed from play
+amounts currently in play $10 $50 $75 $100 $200 $400 $25000 $50000 $200000 $400000
+the maximum amount currently in play is $400000
+your suitcase is 15
+select 2 suitcases to remove from play
+suitcases currently in play 2 8 9 12 16 19 22 23 24
+remove one from the suitcases currently in play by entering its number
+2
+suitcase 2 containing $75 has been removed from play
+amounts currently in play $10 $50 $100 $200 $400 $25000 $50000 $200000 $400000
+the maximum amount currently in play is $400000
+your suitcase is 15
+select 1 suitcase to remove from play
+suitcases currently in play 8 9 12 16 19 22 23 24
+remove one from the suitcases currently in play by entering its number
+22
+suitcase 22 containing $50 has been removed from play
+amounts currently in play $10 $100 $200 $400 $25000 $50000 $200000 $400000
+the maximum amount currently in play is $400000
+your suitcase is 15
+previous offers, starting with the very first offer, and ending with the last offer that you declined
+$61236 $80324 $21021
+the banker offers you $47033
+enter 1 to accept offer, or 0 to decline and continue play
+0
+offer declined
+your suitcase is 15
+select 2 suitcases to remove from play
+suitcases currently in play 8 9 12 16 19 23 24
+remove one from the suitcases currently in play by entering its number
+12
+suitcase 12 containing $50000 has been removed from play
+amounts currently in play $10 $100 $200 $400 $25000 $200000 $400000
+the maximum amount currently in play is $400000
+your suitcase is 15
+select 1 suitcase to remove from play
+suitcases currently in play 8 9 16 19 23 24
+remove one from the suitcases currently in play by entering its number
+23
+suitcase 23 containing $400000 has been removed from play
+amounts currently in play $10 $100 $200 $400 $25000 $200000
+the maximum amount currently in play is $200000
+your suitcase is 15
+previous offers, starting with the very first offer, and ending with the last offer that you declined
+$61236 $80324 $21021 $47033
+the banker offers you $20644
+enter 1 to accept offer, or 0 to decline and continue play
+0
+offer declined
+your suitcase is 15
+select 1 suitcase to remove from play
+suitcases currently in play 8 9 16 19 24
+remove one from the suitcases currently in play by entering its number
+19
+suitcase 19 containing $400 has been removed from play
+amounts currently in play $10 $100 $200 $25000 $200000
+the maximum amount currently in play is $200000
+your suitcase is 15
+previous offers, starting with the very first offer, and ending with the last offer that you declined
+$61236 $80324 $21021 $47033 $20644
+the banker offers you $29063
+enter 1 to accept offer, or 0 to decline and continue play
+0
+offer declined
+your suitcase is 15
+select 1 suitcase to remove from play
+suitcases currently in play 8 9 16 24
+remove one from the suitcases currently in play by entering its number
+8
+suitcase 8 containing $200 has been removed from play
+amounts currently in play $10 $100 $25000 $200000
+the maximum amount currently in play is $200000
+your suitcase is 15
+previous offers, starting with the very first offer, and ending with the last offer that you declined
+$61236 $80324 $21021 $47033 $20644 $29063
+the banker offers you $40732
+enter 1 to accept offer, or 0 to decline and continue play
+0
+offer declined
+your suitcase is 15
+select 1 suitcase to remove from play
+suitcases currently in play 9 16 24
+remove one from the suitcases currently in play by entering its number
+16
+suitcase 16 containing $200000 has been removed from play
+amounts currently in play $10 $100 $25000
+the maximum amount currently in play is $25000
+your suitcase is 15
+previous offers, starting with the very first offer, and ending with the last offer that you declined
+$61236 $80324 $21021 $47033 $20644 $29063 $40732
+the banker offers you $12286
+enter 1 to accept offer, or 0 to decline and continue play
+0
+offer declined
+your suitcase is 15
+select 1 suitcase to remove from play
+suitcases currently in play 9 24
+remove one from the suitcases currently in play by entering its number
+9
+suitcase 9 containing $100 has been removed from play
+amounts currently in play $10 $25000
+the maximum amount currently in play is $25000
+your suitcase is 15
+previous offers, starting with the very first offer, and ending with the last offer that you declined
+$61236 $80324 $21021 $47033 $20644 $29063 $40732 $12286
+the banker offers you $18056
+this is your last chance to accept an offer
+enter 1 to accept offer, or 0 to decline and continue play
+0
+offer declined
+do you want the amount in suitcase 24 instead of the amount in the suitcase that you selected to start the game?
+enter 1 to swap, or 0 to decline
+1
+swap accepted
+game over, you are awarded $25000
+
+options are interactive game (1), play until millionaire (2), play until bankrupt (3), or quit (q)
+input 1, 2, 3, or q :
+q
+thank you for playing
+
+
+
+#endif
+
+//EOF
+
+
+
+
