@@ -663,6 +663,25 @@ void deal_or_no_deal::_offer_swap_simulated() {
 	}
 }
 
+//EOF
+
+
+/*
+ * main.cpp
+ *
+ *  Created on: Aug 18, 2014
+ *      Author: Ronald Inselberg
+ */
+
+#include "Random.h"
+#include "deal_or_no_deal.h"
+
+int main() {
+	deal_or_no_deal::test_bed();
+	return 0;
+}
+
+//EOF
 
 
 #if 0
