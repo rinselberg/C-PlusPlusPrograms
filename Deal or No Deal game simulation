@@ -1,4 +1,69 @@
 /*
+ * Random.h
+ *
+ *  Created on: Aug 17, 2014
+ *      Author: Ronald Inselberg
+ */
+
+#ifndef RANDOM_H_
+#define RANDOM_H_
+
+#include "../../objects/util/util.h"
+
+#define DEBUG_Random false
+
+class Random {
+
+public:
+
+	/* use current system time to seed pseudo random number generator */
+	Random() { srand( (unsigned) time(0) ); if (DEBUG_Random) {cout << "Random, constructor" << endl;} };
+	~Random() { if (DEBUG_Random) {cout << "Random, destructor" << endl;}; };
+
+	/* return next pseudo random number in sequence */
+	int get_random_number(int, int) const;
+
+private:
+
+	/* no body can copy random or equal random */
+	Random(const Random& x);
+	Random& operator=(const Random& x);
+
+};
+
+#endif /* RANDOM_H_ */
+
+//EOF
+
+
+/*
+ * Random.cpp
+ *
+ *  Created on: Aug 17, 2014
+ *      Author: Ronald Inselberg
+ */
+
+/*--------------------------------------------------------
+class random number generator
+----------------------------------------------------------*/
+
+#include "Random.h"
+
+/* returns a random integer R in specified range a <= R <= b */
+int Random::get_random_number(int a = 0, int b = 10000) const {
+	int upper_bound = b - a + 1;
+	int lower_bound = a;
+	if (a >= b) {
+		upper_bound = a - b + 1;
+		lower_bound = b;
+	}
+	return (lower_bound + rand() % upper_bound);
+}
+
+//EOF
+
+
+/*
  * deal_or_no_deal.h
  *
  *  Created on: Aug 18, 2014
