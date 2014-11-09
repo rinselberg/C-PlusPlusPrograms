@@ -341,7 +341,6 @@ iset64& operator*=(iset64& op1, const iset64& op2) {
 
 EXTERNALLY PROVIDED TEST PROGRAM
 
-Copyright (c) 2013 Author: Jagadeesh Vasudevamurthy
 file: iset64test.cpp
 
 On linux:
