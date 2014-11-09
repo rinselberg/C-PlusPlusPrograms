@@ -29,3 +29,297 @@ protected:
 #endif /* TRUTHTABLE_H_ */
 
 //EOF
+
+
+/*
+ * truthtable.cpp
+ *
+ *  Created on: Sep 30, 2014
+ *      Author: Ronald Inselberg
+ */
+
+/* class definition depends on class declaration from header file */
+#include "truthtable.h"
+
+/*----------------------------------------------------------------
+static members are initialized
+-----------------------------------------------------------------*/
+
+/* left shift base value of 1 by N bit positions and fill with 0s */
+#define EL(N) long(1) << N
+
+/* initialize and store the bit map representations for all permissible set elements from 0 to 63 */
+long truthtable::_el[] = {
+		EL(0), EL(1), EL(2), EL(3), EL(4), EL(5), EL(6), EL(7), EL(8), EL(9),
+		EL(10), EL(11), EL(12), EL(13), EL(14), EL(15), EL(16), EL(17), EL(18), EL(19),
+		EL(20), EL(21), EL(22), EL(23), EL(24), EL(25), EL(26), EL(27), EL(28), EL(29),
+		EL(30), EL(31), EL(32), EL(33), EL(34), EL(35), EL(36), EL(37), EL(38), EL(39),
+		EL(40), EL(41), EL(42), EL(43), EL(44), EL(45), EL(46), EL(47), EL(48), EL(49),
+		EL(50), EL(51), EL(52), EL(53), EL(54), EL(55), EL(56), EL(57), EL(58), EL(59),
+		EL(60), EL(61), EL(62), EL(63)
+};
+
+/*----------------------------------------------------------------
+constructors
+-----------------------------------------------------------------*/
+truthtable::truthtable(const int n) {
+	// CONSTRUCT TRUTH TABLE OF SIZE n, print final rows (up to four) and report elapsed system time in seconds
+	assert((1 <= n) && (n <= 63));
+	clock_t start = clock();
+	unsigned long nrows = EL(n);
+	cout << "truth table of " << n << " generates " << nrows << " rows" << endl;
+	cout << "the data to print all " << nrows << " rows is generated internally" << endl;
+	cout << "only the final rows, up to a maximum of four, are printed" << endl;
+	for (unsigned long row = 1; row <= nrows; ++row) {
+		char rowOutput[64];
+		unsigned long rowval = row - 1;
+		int rowOutputIndex = -1;
+		for (int mask = n - 1;  mask >= 0; --mask) {
+			if (rowval & _el[mask]) {
+				rowOutput[++rowOutputIndex] = '1';
+			} else {
+				rowOutput[++rowOutputIndex] = '0';
+			}
+		}
+		rowOutput[++rowOutputIndex] = NULL;
+		if (nrows - row < 4) {
+			cout << rowOutput << endl;
+		}
+	}
+	clock_t end = clock();
+	double delta = double(end - start) / CLOCKS_PER_SEC;
+	cout << "TIME IN SECONDS " << delta << endl << endl;
+}
+
+//EOF
+
+
+/*
+ * truthtabletest.cpp
+ *
+ *  Created on: Sep 30, 2014
+ *      Author: Ronald Inselberg
+ */
+
+#include "truthtable.h"
+
+int main() {
+	truthtable t = truthtable(1);
+	for (int n = 2; n <= 20; ++n) {
+		t = truthtable(n);
+	}
+	truthtable(24);
+	truthtable(32);
+	truthtable(63);
+	return 0;
+}
+
+#if 0
+
+TEST PROGRAM OUTPUT DATA
+
+truth table of 1 generates 2 rows
+the data to print all 2 rows is generated internally
+only the final rows, up to a maximum of four, are printed
+0
+1
+TIME IN SECONDS 7.4e-05
+
+truth table of 2 generates 4 rows
+the data to print all 4 rows is generated internally
+only the final rows, up to a maximum of four, are printed
+00
+01
+10
+11
+TIME IN SECONDS 2.3e-05
+
+truth table of 3 generates 8 rows
+the data to print all 8 rows is generated internally
+only the final rows, up to a maximum of four, are printed
+100
+101
+110
+111
+TIME IN SECONDS 2.1e-05
+
+truth table of 4 generates 16 rows
+the data to print all 16 rows is generated internally
+only the final rows, up to a maximum of four, are printed
+1100
+1101
+1110
+1111
+TIME IN SECONDS 2.1e-05
+
+truth table of 5 generates 32 rows
+the data to print all 32 rows is generated internally
+only the final rows, up to a maximum of four, are printed
+11100
+11101
+11110
+11111
+TIME IN SECONDS 2.3e-05
+
+truth table of 6 generates 64 rows
+the data to print all 64 rows is generated internally
+only the final rows, up to a maximum of four, are printed
+111100
+111101
+111110
+111111
+TIME IN SECONDS 3.8e-05
+
+truth table of 7 generates 128 rows
+the data to print all 128 rows is generated internally
+only the final rows, up to a maximum of four, are printed
+1111100
+1111101
+1111110
+1111111
+TIME IN SECONDS 3.1e-05
+
+truth table of 8 generates 256 rows
+the data to print all 256 rows is generated internally
+only the final rows, up to a maximum of four, are printed
+11111100
+11111101
+11111110
+11111111
+TIME IN SECONDS 3.6e-05
+
+truth table of 9 generates 512 rows
+the data to print all 512 rows is generated internally
+only the final rows, up to a maximum of four, are printed
+111111100
+111111101
+111111110
+111111111
+TIME IN SECONDS 5.2e-05
+
+truth table of 10 generates 1024 rows
+the data to print all 1024 rows is generated internally
+only the final rows, up to a maximum of four, are printed
+1111111100
+1111111101
+1111111110
+1111111111
+TIME IN SECONDS 8.7e-05
+
+truth table of 11 generates 2048 rows
+the data to print all 2048 rows is generated internally
+only the final rows, up to a maximum of four, are printed
+11111111100
+11111111101
+11111111110
+11111111111
+TIME IN SECONDS 0.000227
+
+truth table of 12 generates 4096 rows
+the data to print all 4096 rows is generated internally
+only the final rows, up to a maximum of four, are printed
+111111111100
+111111111101
+111111111110
+111111111111
+TIME IN SECONDS 0.000387
+
+truth table of 13 generates 8192 rows
+the data to print all 8192 rows is generated internally
+only the final rows, up to a maximum of four, are printed
+1111111111100
+1111111111101
+1111111111110
+1111111111111
+TIME IN SECONDS 0.000632
+
+truth table of 14 generates 16384 rows
+the data to print all 16384 rows is generated internally
+only the final rows, up to a maximum of four, are printed
+11111111111100
+11111111111101
+11111111111110
+11111111111111
+TIME IN SECONDS 0.001227
+
+truth table of 15 generates 32768 rows
+the data to print all 32768 rows is generated internally
+only the final rows, up to a maximum of four, are printed
+111111111111100
+111111111111101
+111111111111110
+111111111111111
+TIME IN SECONDS 0.002777
+
+truth table of 16 generates 65536 rows
+the data to print all 65536 rows is generated internally
+only the final rows, up to a maximum of four, are printed
+1111111111111100
+1111111111111101
+1111111111111110
+1111111111111111
+TIME IN SECONDS 0.005268
+
+truth table of 17 generates 131072 rows
+the data to print all 131072 rows is generated internally
+only the final rows, up to a maximum of four, are printed
+11111111111111100
+11111111111111101
+11111111111111110
+11111111111111111
+TIME IN SECONDS 0.010124
+
+truth table of 18 generates 262144 rows
+the data to print all 262144 rows is generated internally
+only the final rows, up to a maximum of four, are printed
+111111111111111100
+111111111111111101
+111111111111111110
+111111111111111111
+TIME IN SECONDS 0.021757
+
+truth table of 19 generates 524288 rows
+the data to print all 524288 rows is generated internally
+only the final rows, up to a maximum of four, are printed
+1111111111111111100
+1111111111111111101
+1111111111111111110
+1111111111111111111
+TIME IN SECONDS 0.043342
+
+truth table of 20 generates 1048576 rows
+the data to print all 1048576 rows is generated internally
+only the final rows, up to a maximum of four, are printed
+11111111111111111100
+11111111111111111101
+11111111111111111110
+11111111111111111111
+TIME IN SECONDS 0.089304
+
+truth table of 24 generates 16777216 rows
+the data to print all 16777216 rows is generated internally
+only the final rows, up to a maximum of four, are printed
+111111111111111111111100
+111111111111111111111101
+111111111111111111111110
+111111111111111111111111
+TIME IN SECONDS 1.58279
+
+truth table of 32 generates 4294967296 rows
+the data to print all 4294967296 rows is generated internally
+only the final rows, up to a maximum of four, are printed
+11111111111111111111111111111100
+11111111111111111111111111111101
+11111111111111111111111111111110
+11111111111111111111111111111111
+TIME IN SECONDS 492.035
+
+truth table of 63 generates 9223372036854775808 rows
+the data to print all 9223372036854775808 rows is generated internally
+only the final rows, up to a maximum of four, are printed
+
+*** PROGRAM TERMINATED FROM CONSOLE BEFORE RUNNING TO COMPLETION ***
+
+#endif
+
+//EOF
