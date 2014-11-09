@@ -1,0 +1,31 @@
+/*
+ * truthtable.h
+ *
+ *  Created on: Sep 30, 2014
+ *      Author: Ronald Inselberg
+ */
+
+/*----------------------------------------------------------------
+truthtable class declaration
+-----------------------------------------------------------------*/
+#ifndef TRUTHTABLE_H_
+#define TRUTHTABLE_H_
+
+/*----------------------------------------------------------------
+only permissible external include file
+-----------------------------------------------------------------*/
+#include "../../objects/util/util.h"
+
+class truthtable {
+
+public:
+	truthtable(const int n);
+
+protected:
+	static long _el[64];
+
+};
+
+#endif /* TRUTHTABLE_H_ */
+
+//EOF
