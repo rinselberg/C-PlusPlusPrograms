@@ -785,7 +785,10 @@ int main() {
   return 0;
 }
 
-//EOF
+
+#if 0
+
+TEST PROGRAM OUTPUT
 
 Run time Without recursion = 6e-06 secs
 Run time With recursion = 3e-06 secs
@@ -824,3 +827,7 @@ There is NO loop in the list
 There is a loop in the list 
 objects(88716,0x7fff70e5e310) malloc: *** error for object 0x7f9bc0c03ab0: pointer being freed was not allocated
 *** set a breakpoint in malloc_error_break to debug
+
+#endif
+
+//EOF
