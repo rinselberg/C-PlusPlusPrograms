@@ -1,0 +1,199 @@
+/*----------------------------------------------------------------
+RONALD INSELBERG
+November 18, 204
+
+Using the STL Vector Class
+
+Front end of a sorting operation. Airline flight data is parsed, reformatted and sorted on the Time Of Day field,
+in descending lexicological order, from the latest Time Of Day, down to the earliest Time Of Day.
+
+The sorting package was externally supplied, and that code is not included here.
+
+INPUT DATA (FIRST FIVE RECORDS OF 1000-RECORD INPUT FILE)
+St. Petersburg Clearwater Int.  PIE   |USAir|02:28|10|
+Palm Springs International   PSP   |Delta|10:39|10|
+Providence T.F. Green   PVD   |Delta|19:40|2|
+Boston Logan International   BOS   |AirCanada|18:38|8|
+San Diego International   SAN   |Continental|17:55|12|
+. . .
+
+OUTPUT DATA (FIRST FIVE RECORDS AND LAST FIVE RECORDS OF 1000-RECORD OUTPUT FILE)
+22:57  Reno Tahoe International   RNO     Delta  13
+22:55  Raleigh-Durham International   RDU     Southwest  4
+22:55  Bellingham International   BLI     Continental  14
+22:53  Salt Lake City International   SLC     Continental  13
+. . .
+00:06  Orange County John Wayne   SNA     Skywest  12
+00:04  Aberdeen Regional   ABR     Continental  19
+00:01  St. Petersburg Clearwater Int.  PIE     United  7
+00:01  Orlando International   MCO     Delta  11
+00:01  Huron Regional   HON     Southwest  18
+-----------------------------------------------------------------*/
+
+/*----------------------------------------------------------------
+All includes here
+-----------------------------------------------------------------*/
+#include "dsortstl.h"
+
+/*--------------------------------------------------------
+static definition - only once at the start
+Change to false, if you don't need verbose
+----------------------------------------------------------*/
+template <typename T>
+bool dsortstl<T>::_display = false;
+
+/*--------------------------------------------------------
+local to this file. Change verbose = true for debugging
+----------------------------------------------------------*/
+static bool verbose = true;
+
+/*----------------------------------------------------------------
+abort on first "bad" input record from flights.dat (abort is from main)
+expect no more than "alen" chars before seeing a new line or string terminator
+"alen" is passed as 256 from main
+-----------------------------------------------------------------*/
+bool verifyRecordLength(const char frec[], int alen) {
+	int cx;
+	for (cx = 0; cx < alen; ++cx) {
+		if ((frec[cx] == '\n') || (frec[cx] == '\0')) {
+			break;
+
+		}
+	}
+	return ((cx > 0) && (cx < alen));
+}
+
+/*----------------------------------------------------------------
+process the '|' delimiters in the flights.dat records
+-----------------------------------------------------------------*/
+int findSeparator(int num, const char fileRecord[]) {
+	int count = 0;
+	int f = 0;
+	while (count < num) {
+		if (fileRecord[f] == '|') {
+			++count;
+		}
+		++f;
+	}
+	return f;
+}
+
+/*----------------------------------------------------------------
+process the Time Of Day data
+-----------------------------------------------------------------*/
+int parseFtime(char displayRecord[], const char fileRecord[]) {
+	int f = findSeparator(2, fileRecord);
+	strncpy(displayRecord, &fileRecord[f], 5);
+	strcpy(&displayRecord[5], "  ");
+	int index = 7;
+	displayRecord[index] = '\0';
+	//cout << displayRecord << endl;
+	return index;
+}
+
+/*----------------------------------------------------------------
+process the Airport data
+-----------------------------------------------------------------*/
+int parseAirport(char displayRecord[], int d_index, const char fileRecord[]) {
+	int f = findSeparator(1, fileRecord) - 1;
+	strncpy(&displayRecord[d_index], fileRecord, f);
+	strcpy(&displayRecord[d_index + f], "  ");
+	int index = d_index + f + 2;
+	displayRecord[index] = '\0';
+	//cout << displayRecord << endl;
+	return index;
+}
+
+/*----------------------------------------------------------------
+process the Carrier data
+-----------------------------------------------------------------*/
+int parseCarrier(char displayRecord[], int d_index, const char fileRecord[]) {
+	int f = findSeparator(1, fileRecord);
+	int f1 = findSeparator(2, fileRecord) - 2;
+	int n2copy = f1 - f + 1;
+	strncpy(&displayRecord[d_index], &fileRecord[f], n2copy);
+	strcpy(&displayRecord[d_index + n2copy], "  ");
+	int index = d_index + n2copy + 2;
+	displayRecord[index] = '\0';
+	//cout << displayRecord << endl;
+	return index;
+}
+
+/*----------------------------------------------------------------
+process the Terminal data
+-----------------------------------------------------------------*/
+void parseTerminal(char displayRecord[], int d_index, const char fileRecord[]) {
+	int f = findSeparator(3, fileRecord);
+	int f1 = findSeparator(4, fileRecord) - 2;
+	int n2copy = f1 - f + 1;
+	strncpy(&displayRecord[d_index], &fileRecord[f], n2copy);
+	int index = d_index + n2copy;
+	displayRecord[index++] = '\n';
+	displayRecord[index] = '\0';
+	cout << displayRecord;
+}
+
+/*----------------------------------------------------------------
+copy char array data to console
+called for every flights.dat file record from main
+-----------------------------------------------------------------*/
+void copyToConsole(const char a[]) {
+	cout << a;
+}
+
+/*----------------------------------------------------------------
+-----------------------------------------------------------------*/
+int main() {
+	char fileRecord[256];
+	char flightData[] = "/Users/SI67/Desktop/objects/dataFiles/flights.dat";
+	char displayRecord[256];
+	vector<char*> flightsArray;
+	char* ptr2data;
+	char outputRecord[256];
+	ifstream inStream(flightData);
+	if (inStream.fail()) {
+		cout << "input file open fail" << endl;
+		exit(1);
+
+	}
+	int nRecords = 0;
+	while (!inStream.eof()) {
+		inStream.getline(fileRecord, 256);
+		if (!verifyRecordLength(fileRecord, 256)) {
+			cout << "invalid file record length or end of file" << endl;
+			break;
+
+		}
+		//copyToConsole(fileRecord);
+		int index = parseFtime(displayRecord, fileRecord);
+		index = parseAirport(displayRecord, index, fileRecord);
+		index = parseCarrier(displayRecord, index, fileRecord);
+		parseTerminal(displayRecord, index, fileRecord);
+		ptr2data = new char[strlen(displayRecord)];
+		strcpy(ptr2data, displayRecord);
+		flightsArray.push_back(ptr2data);
+		++nRecords;
+	}
+	inStream.close();
+	cout << "processed " << nRecords << " file records" << endl;
+	dsortstl<char*> FlightsDisplay(flightsArray, string_descending_order, nRecords);
+	FlightsDisplay.bubble_sort();
+	char outputData[] = "/Users/SI67/Desktop/objects/dataFiles/output.dat";
+	ofstream outStream(outputData);
+	if (outStream.fail()) {
+		cout << "output file open fail" << endl;
+		exit(1);
+
+	}
+	for (int n_out = 0; n_out < nRecords; ++n_out) {
+		ptr2data = flightsArray[n_out];
+		outStream << ptr2data;
+		delete[] ptr2data;
+	}
+	outStream.close();
+	return 0;
+}
+
+//EOF
+
+
